@@ -17,6 +17,9 @@ pub enum CastRemoteUpdate {
     },
     SessionEnded {
         player_id: usize,
+        /// Which radio session ended (see `CastPlaybackManager::radio_session`), so a late
+        /// report from a replaced session cannot end the one that replaced it.
+        session: u64,
         /// Bypass registry grace when the Cast link is definitely gone.
         force: bool,
     },
@@ -118,6 +121,7 @@ mod tests {
             },
             CastRemoteUpdate::SessionEnded {
                 player_id: 3,
+                session: 1,
                 force: false,
             },
         ];

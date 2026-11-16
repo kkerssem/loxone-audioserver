@@ -174,24 +174,33 @@ pub(crate) async fn handle_cast_remote_update(
                 events,
             );
         }
-        CastRemoteUpdate::SessionEnded { player_id, force } => {
-            if force {
-                if cast_manager.zone_is_radio(player_id) {
+        CastRemoteUpdate::SessionEnded {
+            player_id,
+            session,
+            force,
+        } => {
+            match session_end_action(cast_manager.radio_session(player_id), session) {
+                SessionEndAction::Stale => {
+                    debug!(player_id, session, "ignored end of a replaced cast session");
+                    return;
+                }
+                // The zone's live session ended: no newer session can be starting, so clear the
+                // zone even right after its last Cast update (the registry grace would otherwise
+                // drop this one report, and the listener sends no other).
+                SessionEndAction::EndCurrent => {
                     let _ = cast_manager.take_zone_on_session_end(player_id);
+                    if registry.clear_zone(Playerid(player_id), true) != ApplyOutcome::Changed {
+                        return;
+                    }
                 }
-                if registry.clear_zone(Playerid(player_id), true) != ApplyOutcome::Changed {
-                    return;
-                }
-            } else {
-                if !cast_manager.zone_is_radio(player_id) {
-                    return;
-                }
-                let outcome = registry.clear_zone(Playerid(player_id), false);
-                if outcome != ApplyOutcome::Changed {
-                    return;
-                }
-                if !cast_manager.take_zone_on_session_end(player_id) {
-                    return;
+                SessionEndAction::NoSession => {
+                    // No radio session in the manager (a start that failed after connecting):
+                    // a definite loss still clears a zone left marked as Cast radio.
+                    if !force
+                        || registry.clear_zone(Playerid(player_id), true) != ApplyOutcome::Changed
+                    {
+                        return;
+                    }
                 }
             }
             let zone_name = zone_name_for(zones, player_id);
@@ -202,6 +211,25 @@ pub(crate) async fn handle_cast_remote_update(
             publish_zone_state(registry, state, PlaybackSource::Idle, events);
             let _ = runtime;
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum SessionEndAction {
+    /// The report comes from a session that has since been replaced (a new station started).
+    Stale,
+    /// The zone's live radio session ended.
+    EndCurrent,
+    /// The manager has no radio session for the zone.
+    NoSession,
+}
+
+/// Decide what a `SessionEnded` report means, given the zone's current radio session.
+fn session_end_action(current: Option<u64>, ended: u64) -> SessionEndAction {
+    match current {
+        Some(current) if current == ended => SessionEndAction::EndCurrent,
+        Some(_) => SessionEndAction::Stale,
+        None => SessionEndAction::NoSession,
     }
 }
 
@@ -234,6 +262,7 @@ mod radio_status_tests {
     use crate::cast::CastPlaybackManager;
     use crate::player_state::{Mode, Playerid};
     use crate::radio::{build_radio_player_state, ResolvedRadioStream};
+    use std::time::Duration;
     use tokio::sync::mpsc;
 
     fn sample_resolved() -> ResolvedRadioStream {
@@ -289,6 +318,54 @@ mod radio_status_tests {
             recv_state_helper(&mut rx).map(|s| s.title),
             Some("FM".to_string())
         );
+    }
+
+    #[test]
+    fn session_end_from_the_live_session_ends_it() {
+        assert_eq!(session_end_action(Some(4), 4), SessionEndAction::EndCurrent);
+    }
+
+    #[test]
+    fn session_end_from_a_replaced_session_is_stale() {
+        assert_eq!(session_end_action(Some(5), 4), SessionEndAction::Stale);
+    }
+
+    #[test]
+    fn session_end_without_a_radio_session() {
+        assert_eq!(session_end_action(None, 4), SessionEndAction::NoSession);
+    }
+
+    /// The bug this guards against: a live session's end report arrives within the registry's
+    /// grace after the last Cast update, is ignored, and the zone stays Cast-owned, so the
+    /// speaker's own playback is never shown again.
+    #[test]
+    fn live_session_end_inside_grace_releases_zone_to_speaker_polls() {
+        let resolved = sample_resolved();
+        let base =
+            build_radio_player_state(Playerid(3), Some("Kitchen"), &resolved, Mode::Play, 40.0);
+        let (tx, _rx) = broadcast::channel(8);
+        let mut registry = ZoneRegistry::with_cast_session_end_grace(Duration::from_secs(60));
+        fanout_cast_radio_state(
+            &mut registry,
+            base,
+            Some("Kitchen"),
+            "504f94ff1bb3",
+            "http://10.0.0.1:7091",
+            &tx,
+        );
+        assert!(registry.is_cast_owned(Playerid(3)));
+        // What the old handling did for a non-forced end: ignored inside the grace.
+        assert_eq!(
+            registry.clear_zone(Playerid(3), false),
+            ApplyOutcome::Ignored
+        );
+        assert!(registry.is_cast_owned(Playerid(3)));
+        // EndCurrent clears with force, so the zone is released.
+        assert_eq!(
+            registry.clear_zone(Playerid(3), true),
+            ApplyOutcome::Changed
+        );
+        assert!(!registry.is_cast_owned(Playerid(3)));
     }
 
     fn recv_state_helper(rx: &mut broadcast::Receiver<IoEvent>) -> Option<PlayerState> {
