@@ -422,7 +422,15 @@ async fn handle_socket(mut socket: WebSocket, app_state: AppState) {
         session_token,
         "remote websocket connected"
     );
-    socket.send(msg).await.unwrap();
+    if socket.send(msg).await.is_err() {
+        info!(
+            port = 7091,
+            api = "remote",
+            session_token,
+            "remote websocket closed before greeting"
+        );
+        return;
+    }
 
     push_initial_audio_events(
         &mut socket,
@@ -464,7 +472,10 @@ async fn handle_socket(mut socket: WebSocket, app_state: AppState) {
                                 );
                                 match api.process_message(utf8_bytes).await {
                                     Ok(message) => {
-                                        socket.send(message).await.unwrap(); // ? anyhow
+                                        if socket.send(message).await.is_err() {
+                                            info!(port = 7091, api = "remote", session_token, "remote websocket send failed; closing");
+                                            return;
+                                        }
                                     }
                                     Err(error) => {
                                         error!(port = 7091, api = "remote", error = %error, session_token, "remote command handler failed");
@@ -512,13 +523,19 @@ async fn handle_socket(mut socket: WebSocket, app_state: AppState) {
                             let broadcast = serde_json::to_string(&json!({
                                 "audio_event": [{"playerid": playerid, "time": seconds}],
                             })).unwrap();
-                            socket.send(Message::from(broadcast)).await.unwrap(); // ? anyhow
+                            if socket.send(Message::from(broadcast)).await.is_err() {
+                                info!(port = 7091, api = "remote", session_token, "remote websocket send failed; closing");
+                                return;
+                            }
                         },
                         IoEvent::State(state) => {
                             let broadcast = serde_json::to_string(&json!({
                                 "audio_event": [state.clone()],
-                            })).unwrap(); // ? anyhow
-                            socket.send(Message::from(broadcast)).await.unwrap(); // ? anyhow
+                            })).unwrap();
+                            if socket.send(Message::from(broadcast)).await.is_err() {
+                                info!(port = 7091, api = "remote", session_token, "remote websocket send failed; closing");
+                                return;
+                            }
                         },
                         IoEvent::ConfigUpdated(_) => {}
                         // Reference: hw_event heartbeats on 7095 (Miniserver) only, not 7091 Web UI.
