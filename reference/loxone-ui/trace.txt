@@ -1,0 +1,122 @@
+LWSS V 17.1.05.05 | ~API:1.6~ | Session-Token: 8WahwAfULwEQce9Yu0qIE9L7QMkXFHbi0M9ch9vKcgYArPPojXHpSiNcq0fT3lqL{"audio_event":[{"playerid":1,"name":"Utility Room","title":"","artist":"","album":"","coverurl":"","audiopath":"","duration":0,"equalizerSettings":"0,0,0,0,0,0,0,0,0,0","time":0,"qindex":0,"queueAuthority":"local","plshuffle":0,"plrepeat":0,"volume":10,"mode":"stop","audiotype":0,"sourceName":"8E09F7D5ADDB","station":"","parent":null,"type":3,"clientState":"on","power":"on","powerState":"off"}]}
+audio/cfg/getkey/full
+{
+  "getkey_result": [
+    {
+      "pubkey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw5SjRiyTPeYdEjFjM7Qe\n7upYfm3j0Y5PZI34bVX7bphp4EcvNuQW8G1PQroJZ/evY8c4dIqL171wZ7ABizDv\nb7IRGC+qr+ek/ODCbYjHKaVKY6db003qgycoKa/UiE/Ycokkgn/WuaMvIulpiuc+\n9ZGdqbAVJjQyr0PoXL1jLQ4D8xGKRqCgUB6/OyaBtB98Dt/H6KVPlQ1KMNCl2r2l\n5k3F9OJhD6ccty4R/QyJOCvsSYZxqIIBFk2hAp+j4kMZ3N+O8uF7oKjM6dsGm0J0\nBLv4o9d/PGmw4V55F74WjQQVkhQzi+8ILZ73XuA7ljjNL1vPUazeYdVNLJn8kfoT\niwIDAQAB\n-----END PUBLIC KEY-----\n"
+    }
+  ],
+  "command": "audio/cfg/getkey/full"
+}
+secure/authenticate/user/REDACTED
+{
+  "authenticate_result": "authentication successful",
+  "command": "secure/authenticate/user/REDACTED"
+}
+audio/cfg/getroomfavs/1/0/50
+{
+  "getroomfavs_result": [
+    {
+      "id": 1,
+      "type": 4,
+      "start": 0,
+      "totalitems": 0,
+      "items": []
+    }
+  ],
+  "command": "audio/cfg/getroomfavs/1/0/50"
+}
+audio/1/recentaudio/cfg/globalsearch/describeaudio/cfg/getinputsaudio/cfg/getavailableservicesaudio/cfg/getservices
+{
+  "globalsearch_result": {
+    "spotify": [
+      "track",
+      "album",
+      "artist",
+      "playlist",
+      "episode",
+      "show"
+    ],
+    "local": [
+      "track",
+      "album",
+      "artist",
+      "playlist",
+      "folder"
+    ],
+    "tunein": [
+      "station",
+      "custom"
+    ]
+  },
+  "command": "audio/cfg/globalsearch/describe"
+}{
+  "getinputs_result": [],
+  "command": "audio/cfg/getinputs"
+}{
+  "getavailableservices_result": [
+    {
+      "cmd": "spotify",
+      "config": [
+        {
+          "name": "Username",
+          "regex": "%5B%5E%3C%3E%26%25%5C%5C%2F'%5D%7B3%2C99%7D%24",
+          "type": "text"
+        },
+        {
+          "link": "https://www.spotify.com/legal/end-user-agreement",
+          "name": "EULA",
+          "type": "eula"
+        }
+      ],
+      "helplink": "http://www.loxone.com/help/musicserver-spotify",
+      "icon": "https://extended-app-content.s3.eu-central-1.amazonaws.com/audioZone/services/Icon-Spotify.svg",
+      "name": "Spotify",
+      "registerlink": "https://www.spotify.com/signup"
+    }
+  ],
+  "command": "audio/cfg/getavailableservices"
+}{
+  "getservices_result": [],
+  "command": "audio/cfg/getservices"
+}{
+  "recent_result": {
+    "ts": 0,
+    "items": []
+  },
+  "command": "audio/1/recent"
+}
+audio/cfg/getradios
+{
+  "getradios_result": [
+    {
+      "cmd": "local",
+      "icon": "https://extended-app-content.s3.eu-central-1.amazonaws.com/audioZone/services/Icon-TuneIn.svg",
+      "name": "TuneIn Presets",
+      "root": "start"
+    },
+    {
+      "cmd": "custom",
+      "icon": "https://extended-app-content.s3.eu-central-1.amazonaws.com/audioZone/services/Icon-TuneIn.svg",
+      "name": "Custom Streams",
+      "root": "start",
+      "editable": true
+    },
+    {
+      "cmd": "radioparadise",
+      "name": "Radio Paradise",
+      "icon": "http://192.168.50.204:7090/assets/icons/radioparadise-logo-main.png",
+      "root": "start",
+      "description": "Human-curated, listener-supported radio streams."
+    }
+  ],
+  "command": "audio/cfg/getradios"
+}
+audio/1/recent
+{
+  "recent_result": {
+    "ts": 0,
+    "items": []
+  },
+  "command": "audio/1/recent"
+}

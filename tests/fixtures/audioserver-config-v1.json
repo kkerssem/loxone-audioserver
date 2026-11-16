@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "loxone": {
+    "crc32": "a1b2c3d4",
+    "state": [
+      {
+        "504F94FF1BB3": {
+          "master": "504F94000002",
+          "ip": "192.168.1.1",
+          "port": 80,
+          "language": "ENU",
+          "blinkpos": 0,
+          "autoUpdate": 120,
+          "unitTemperature": "C",
+          "name": "AS",
+          "errortts": false,
+          "uuid": "srv",
+          "pwHash": "",
+          "players": [
+            {
+              "uuid": "zone-uuid-2",
+              "playerid": 2,
+              "speakerConfig": 4,
+              "bt": "on",
+              "outputs": []
+            }
+          ],
+          "extensions": [],
+          "groups": []
+        }
+      }
+    ]
+  },
+  "audioserver": {
+    "email": "listener@example.com",
+    "user_auth_token": "test-token",
+    "players": [
+      {
+        "player_id": 2,
+        "loxone_uuid": "zone-uuid-2",
+        "name": "Utility Room",
+        "qobuz_renderer_id": 12,
+        "qobuz_device_uuid": null,
+        "volume_level": 50,
+        "volume_muted": false,
+        "room_favorites": []
+      }
+    ],
+    "last_queue_item_id": null
+  }
+}

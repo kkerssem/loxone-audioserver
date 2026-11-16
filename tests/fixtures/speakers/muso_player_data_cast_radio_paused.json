@@ -1,0 +1,46 @@
+[
+  {
+    "playId": {
+      "systemMemberId": "naims810x-c2376dfe-eb62-461c-8a48-8738b85926f5",
+      "timestamp": 545319225
+    },
+    "mediaRoles": {
+      "description": "Google Cast",
+      "path": "googlecast:playlogic/Default Media Receiver",
+      "mediaData": {
+        "metaData": {
+          "live": true,
+          "playLogicPath": "googlecast:playlogic",
+          "serviceID": "googlecast"
+        }
+      },
+      "doNotTrack": true,
+      "icon": "skin:iconGooglecast",
+      "timestamp": 1794664637016,
+      "title": "Google Cast",
+      "audioType": "audioBroadcast",
+      "type": "audio"
+    },
+    "controls": {
+      "pause": true,
+      "next_": true,
+      "playMode": {},
+      "previous": true
+    },
+    "status": {
+      "duration": 0
+    },
+    "trackRoles": {
+      "description": "",
+      "mediaData": {
+        "metaData": {
+          "externalAppName": "Default Media Receiver",
+          "serviceNameOverride": "Casting Default Media Receiver"
+        }
+      },
+      "title": "538 Non-Stop",
+      "audioType": "audioBroadcast"
+    },
+    "state": "paused"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "source": "room_favs.rs getroomfavs_result paging shell + tunein/qobuz items",
+  "getroomfavs_result": [
+    {
+      "id": 3,
+      "type": 4,
+      "start": 0,
+      "totalitems": 2,
+      "items": [
+        {
+          "id": 1,
+          "slot": 1,
+          "plus": true,
+          "name": "VRT Studio Brussel",
+          "title": "VRT Studio Brussel",
+          "audiopath": "tunein:station:s2611",
+          "type": "tunein",
+          "service": "tunein",
+          "serviceType": 3
+        },
+        {
+          "id": 2,
+          "slot": 2,
+          "plus": true,
+          "name": "Come Together",
+          "title": "Come Together",
+          "audiopath": "qobuz:track:12345",
+          "type": "spotify_track",
+          "service": "spotify",
+          "serviceType": 3
+        }
+      ]
+    }
+  ]
+}

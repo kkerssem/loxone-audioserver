@@ -1,0 +1,79 @@
+[
+  {
+    "error": "",
+    "playId": {
+      "systemMemberId": "naims810x-c2376dfe-eb62-461c-8a48-8738b85926f5",
+      "timestamp": 545638249
+    },
+    "mediaRoles": {
+      "mediaData": {
+        "metaData": {
+          "country": "United States",
+          "serviceID": "VTuner",
+          "xperiMqRK": "",
+          "prePlayTimeOffset": 0,
+          "xperiNPDelay": 0,
+          "genre": "Eclectic ",
+          "xperiMqExch": "",
+          "xperiID": "",
+          "xperiMqUrl": "",
+          "live": true,
+          "allowSeekTime": false,
+          "comment": "",
+          "alternativeStreams": true
+        }
+      },
+      "icon": "https://media.focal-naim.com/app/images/stations/2822.png",
+      "containerType": "none",
+      "title": "Radio Paradise - Main Mix",
+      "audioType": "audioBroadcast",
+      "type": "audio"
+    },
+    "streamId": 9,
+    "ratingPath": "",
+    "controls": {
+      "seekTrack": true,
+      "next_": true,
+      "playMode": {
+        "shuffle": false,
+        "shuffleRepeatOne": false,
+        "repeatOne": false,
+        "shuffleRepeatAll": false,
+        "repeatAll": false
+      },
+      "seekTime": false,
+      "previous": true,
+      "seekBytes": false
+    },
+    "status": {
+      "duration": -1,
+      "timeSeek": false,
+      "byteSeek": false
+    },
+    "trackRoles": {
+      "mediaData": {
+        "metaData": {
+          "country": "United States",
+          "serviceID": "VTuner",
+          "xperiMqRK": "",
+          "prePlayTimeOffset": 0,
+          "xperiNPDelay": 0,
+          "genre": "Eclectic ",
+          "xperiMqExch": "",
+          "xperiID": "",
+          "xperiMqUrl": "",
+          "live": true,
+          "allowSeekTime": false,
+          "comment": "",
+          "alternativeStreams": true
+        }
+      },
+      "icon": "https://media.focal-naim.com/app/images/stations/2822.png",
+      "containerType": "none",
+      "title": "Radio Paradise - Main Mix",
+      "audioType": "audioBroadcast",
+      "type": "audio"
+    },
+    "state": "playing"
+  }
+]

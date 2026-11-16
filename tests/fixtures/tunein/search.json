@@ -1,0 +1,11 @@
+{
+  "head": { "title": "Search Results" },
+  "body": [
+    {
+      "element": "station",
+      "text": "Jazz FM",
+      "guide_id": "s99",
+      "image": "https://cdn.example/jazz.png"
+    }
+  ]
+}

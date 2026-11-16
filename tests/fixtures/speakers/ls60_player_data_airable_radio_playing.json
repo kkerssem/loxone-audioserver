@@ -1,0 +1,66 @@
+[
+  {
+    "status": {
+      "timeSeek": false,
+      "byteSeek": false,
+      "duration": 0
+    },
+    "trackRoles": {
+      "containerPlayable": true,
+      "audioType": "audioBroadcast",
+      "icon": "http://static.airable.io/45/99/143921.png",
+      "title": "Radio Paradise Main Mix",
+      "containerType": "none",
+      "mediaData": {
+        "metaData": {
+          "slogan": "",
+          "prePlayTimeOffset": 0,
+          "serviceID": "airableRadios",
+          "radioStation": true,
+          "maximumRetryCount": 8,
+          "live": true
+        }
+      },
+      "type": "audio"
+    },
+    "playId": {
+      "timestamp": 5058108944,
+      "systemMemberId": "ls60w-444ca1e2-463e-4c3a-8877-18d46bc61e65"
+    },
+    "controls": {
+      "seekTrack": false,
+      "dislike": false,
+      "seekBytes": false,
+      "playMode": {
+        "repeatOne": false,
+        "shuffleRepeatOne": false,
+        "repeatAll": false,
+        "shuffleRepeatAll": false,
+        "shuffle": false
+      },
+      "seekTime": false,
+      "previous": false,
+      "next_": false,
+      "like": false
+    },
+    "mediaRoles": {
+      "containerPlayable": true,
+      "audioType": "audioBroadcast",
+      "icon": "http://static.airable.io/45/99/143921.png",
+      "title": "Radio Paradise Main Mix",
+      "containerType": "none",
+      "mediaData": {
+        "metaData": {
+          "serviceID": "airableRadios",
+          "maximumRetryCount": 8,
+          "live": true
+        }
+      },
+      "type": "audio"
+    },
+    "sessionId": 1,
+    "state": "playing",
+    "error": "",
+    "streamId": 103
+  }
+]

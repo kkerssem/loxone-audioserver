@@ -1,0 +1,5 @@
+{"notification":{"id":140953,"timestamp":"2026-11-15T11:36:55.418924","type":"SHUTDOWN","kind":"device","data":{"reason":"standby"}}}
+
+{"notification":{"id":140955,"timestamp":"2026-11-15T11:36:55.719095","type":"SOURCE","kind":"source","data":{}}}
+
+{"notification":{"id":140956,"timestamp":"2026-11-15T11:36:55.900729","type":"VOLUME","kind":"renderer","data":{"speaker":{"level":34,"muted":false,"range":{"minimum":0,"maximum":90}}}}}

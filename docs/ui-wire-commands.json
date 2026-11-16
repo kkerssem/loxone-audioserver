@@ -1,0 +1,2003 @@
+{
+  "generated_from": {
+    "scripts6.js": "reference/loxone-ui/scripts6.js",
+    "src/remote/mod.rs": "src/remote/mod.rs",
+    "command-audit.log": "command-audit.log",
+    "date": "2026-06-07"
+  },
+  "stats": {
+    "cfg_path_literals": 52,
+    "rust_routes": 0,
+    "audit_unique_commands": 143,
+    "audio_command_enums": 61,
+    "commands_cfg_enums": 52
+  },
+  "implementation_legend": {
+    "routed": "Handler registered in src/remote/mod.rs",
+    "observed_not_routed": "Seen in command-audit.log but no matching router entry",
+    "ui_only": "Present in scripts6.js only (not routed or observed yet)"
+  },
+  "features": [
+    {
+      "name": "ADD_EXTERNAL_ID",
+      "api": "1.2",
+      "firmware": "0.0.0.0"
+    },
+    {
+      "name": "ADD_ZONEFAV_DIRECT",
+      "api": "1.1",
+      "firmware": "1.0.9.16"
+    },
+    {
+      "name": "AUDIO_ZONE_SOURCE",
+      "api": "1.3",
+      "firmware": "1.1.6.21"
+    },
+    {
+      "name": "AWESOME_FEATURE",
+      "api": "3.2",
+      "firmware": "8.0.6.1"
+    },
+    {
+      "name": "BG_LIB_SCANING",
+      "api": "1.3",
+      "firmware": "1.1.9.21"
+    },
+    {
+      "name": "COPY_ZONE_FAVS",
+      "api": "1.6",
+      "firmware": "2.4.1.13"
+    },
+    {
+      "name": "DISABLE_AIRPLAY",
+      "api": "1.1",
+      "firmware": "1.0.9.18"
+    },
+    {
+      "name": "DISABLE_RADIOS",
+      "api": "1.1",
+      "firmware": "1.0.9.16"
+    },
+    {
+      "name": "DISSOLVE_GROUP",
+      "api": "1.6",
+      "firmware": "1.1.12.03"
+    },
+    {
+      "name": "DYNAMIC_INPUTS",
+      "api": "1.1",
+      "firmware": "0.0.6.9"
+    },
+    {
+      "name": "EQUALIZER",
+      "api": "1.3",
+      "firmware": "1.1.5.30"
+    },
+    {
+      "name": "FULL_DIALOG_SUPPORT",
+      "api": "1.3",
+      "firmware": "1.1.5.12"
+    },
+    {
+      "name": "GETMEDIAFOLDER_ERROR",
+      "api": "1.1",
+      "firmware": "1.0.10.8"
+    },
+    {
+      "name": "GLOBAL_SEARCH",
+      "api": "1.6",
+      "firmware": "2.3.09.02"
+    },
+    {
+      "name": "IMPROVED_REQUESTS",
+      "api": "1.4",
+      "firmware": "1.1.11.02"
+    },
+    {
+      "name": "INPUT_CHANGE_EVENT",
+      "api": "1.6",
+      "firmware": "2.4.1.13"
+    },
+    {
+      "name": "INPUT_ZONE_FAVS",
+      "api": "1.6",
+      "firmware": "2.4.1.20"
+    },
+    {
+      "name": "LIBRARY_PLAY",
+      "api": "1.1",
+      "firmware": "0.0.6.9"
+    },
+    {
+      "name": "LIB_SCAN_HANDLING",
+      "api": "1.1",
+      "firmware": "1.0.12.01"
+    },
+    {
+      "name": "NAS_LIBRARY",
+      "api": "1.6",
+      "firmware": "2.3.10.15"
+    },
+    {
+      "name": "NEW_LOGIN_HANDLING",
+      "api": "1.3",
+      "firmware": "1.1.4.20"
+    },
+    {
+      "name": "NEW_PLAYLISTS",
+      "api": "1.6",
+      "firmware": "1.1.12.03"
+    },
+    {
+      "name": "NEW_SERVICE_PLAY",
+      "api": "1.3",
+      "firmware": "1.1.6.9"
+    },
+    {
+      "name": "PAGED_QUEUE",
+      "api": "1.1",
+      "firmware": null
+    },
+    {
+      "name": "PLAY_WHOLE_LIST",
+      "api": "1.4",
+      "firmware": "1.1.10.18"
+    },
+    {
+      "name": "PRETTY_RADIO_ICONS",
+      "api": "1.6",
+      "firmware": "1.1.12.09"
+    },
+    {
+      "name": "QUEUE_V2",
+      "api": "1.6",
+      "firmware": "2.3.10.22"
+    },
+    {
+      "name": "REINDEX_LIB",
+      "api": "1.6",
+      "firmware": "2.4.1.29"
+    },
+    {
+      "name": "REMOVE_GROUP_MASTER",
+      "api": "1.1",
+      "firmware": "0.0.0.0"
+    },
+    {
+      "name": "RENAME_PLAYLIST",
+      "api": "1.6",
+      "firmware": "2.4.1.23"
+    },
+    {
+      "name": "REWORKED_GROUPING",
+      "api": "1.6",
+      "firmware": "1.1.12.03"
+    },
+    {
+      "name": "SAVE_CURRENT_PLAYING",
+      "api": "1.6",
+      "firmware": "1.1.12.03"
+    },
+    {
+      "name": "SEARCHABLE_GENRES",
+      "api": "3.0",
+      "firmware": "9.1.11.29"
+    },
+    {
+      "name": "SEARCHABLE_PLAYLISTS",
+      "api": "1.6",
+      "firmware": "1.1.12.03"
+    },
+    {
+      "name": "SEARCH_ALL",
+      "api": "9.9",
+      "firmware": "99.99.99.99"
+    },
+    {
+      "name": "SEARCH_LIB_IMPROVED",
+      "api": "1.3",
+      "firmware": "1.0.11.27"
+    },
+    {
+      "name": "SEARCH_RADIO",
+      "api": "1.1",
+      "firmware": "0.0.7.21"
+    },
+    {
+      "name": "SEARCH_SERVICES_IMPROVED",
+      "api": "1.4",
+      "firmware": "1.0.11.27"
+    },
+    {
+      "name": "SPOTIFY_CONNECT",
+      "api": "1.6",
+      "firmware": "2.4.1.8"
+    },
+    {
+      "name": "SPOTIFY_FOLLOWABLE",
+      "api": "1.6",
+      "firmware": "1.1.12.03"
+    },
+    {
+      "name": "THIS_APP",
+      "api": "1.0",
+      "firmware": null
+    },
+    {
+      "name": "V2_FIRMWARE",
+      "api": "1.6",
+      "firmware": "2.0.0.0"
+    },
+    {
+      "name": "VOICE_RECORDING",
+      "api": "1.6",
+      "firmware": "2.3.08.21"
+    }
+  ],
+  "cfg_paths": [
+    {
+      "wire_template": "audio/cfg/airplay",
+      "normalized": "audio/cfg/airplay",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/airplay/disable",
+      "normalized": "audio/cfg/airplay/disable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/airplay/enable",
+      "normalized": "audio/cfg/airplay/enable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/audiodelay/%s",
+      "normalized": "audio/cfg/audiodelay/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/audiodelay/%s/%s",
+      "normalized": "audio/cfg/audiodelay/{param}/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/equalizer",
+      "normalized": "audio/cfg/equalizer",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/favorites/addexternalid/",
+      "normalized": "audio/cfg/favorites/addexternalid/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/favorites/addid/",
+      "normalized": "audio/cfg/favorites/addid/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/favorites/addpath/",
+      "normalized": "audio/cfg/favorites/addpath/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/favorites/delete/",
+      "normalized": "audio/cfg/favorites/delete/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/favorites/rename/",
+      "normalized": "audio/cfg/favorites/rename/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/getavailableservices",
+      "normalized": "audio/cfg/getavailableservices",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getavailableservices"
+      ],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/getinputs",
+      "normalized": "audio/cfg/getinputs",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getinputs"
+      ],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/getkey",
+      "normalized": "audio/cfg/getkey",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getkey/full"
+      ],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/getplayersdetails",
+      "normalized": "audio/cfg/getplayersdetails",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/getplaylists2/lms/%s/%s/0/50",
+      "normalized": "audio/cfg/getplaylists2/lms/{param}/{param}/{n}/{n}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/getradios",
+      "normalized": "audio/cfg/getradios",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getradios"
+      ],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/getservicefolder/%s/%s/%s/%i/%i",
+      "normalized": "audio/cfg/getservicefolder/{param}/{param}/{param}/{param}/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/getservices",
+      "normalized": "audio/cfg/getservices",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getservices"
+      ],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/getsyncedplayers",
+      "normalized": "audio/cfg/getsyncedplayers",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/globalsearch/",
+      "normalized": "audio/cfg/globalsearch/",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/globalsearch/describe",
+        "audio/cfg/globalsearch/local:track#5,album#5,artist#5,playlist#5,folder#5/hello",
+        "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/Rem",
+        "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/radiohea",
+        "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/radiohead"
+      ],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/globalsearch/describe",
+      "normalized": "audio/cfg/globalsearch/describe",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/globalsearch/describe"
+      ],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/input/",
+      "normalized": "audio/cfg/input/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/installupdate",
+      "normalized": "audio/cfg/installupdate",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/mac",
+      "normalized": "audio/cfg/mac",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/playlist/create",
+      "normalized": "audio/cfg/playlist/create",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/playlist/deletelist",
+      "normalized": "audio/cfg/playlist/deletelist",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/playlist/follow",
+      "normalized": "audio/cfg/playlist/follow",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/playlist/rename",
+      "normalized": "audio/cfg/playlist/rename",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/playlist/update",
+      "normalized": "audio/cfg/playlist/update",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/playlist/update/lms/nouser/qobuz:track:422318104/start"
+      ],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/props/updatelevel",
+      "normalized": "audio/cfg/props/updatelevel",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/rescan",
+      "normalized": "audio/cfg/rescan",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/rescan/%s",
+      "normalized": "audio/cfg/rescan/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/roomfavs/%s/copy/%s",
+      "normalized": "audio/cfg/roomfavs/{param}/copy/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/scanstatus",
+      "normalized": "audio/cfg/scanstatus",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/search",
+      "normalized": "audio/cfg/search",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/search/spotify/qobuz/album/radiohead/0/50"
+      ],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/searchdetails/library/nouser/",
+      "normalized": "audio/cfg/searchdetails/library/nouser/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/searchresult/",
+      "normalized": "audio/cfg/searchresult/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "wire_template": "audio/cfg/servicecfg/",
+      "normalized": "audio/cfg/servicecfg/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/servicecfg/delete/",
+      "normalized": "audio/cfg/servicecfg/delete/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/servicecfg/getlink/",
+      "normalized": "audio/cfg/servicecfg/getlink/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/servicecfg/update/",
+      "normalized": "audio/cfg/servicecfg/update/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/spotifyconnect",
+      "normalized": "audio/cfg/spotifyconnect",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/spotifyconnect/disable",
+      "normalized": "audio/cfg/spotifyconnect/disable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/spotifyconnect/enable",
+      "normalized": "audio/cfg/spotifyconnect/enable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/storage/add/%s",
+      "normalized": "audio/cfg/storage/add/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/storage/delete/%s",
+      "normalized": "audio/cfg/storage/delete/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/storage/edit/%s/%s",
+      "normalized": "audio/cfg/storage/edit/{param}/{param}",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/storage/list",
+      "normalized": "audio/cfg/storage/list",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/storage/list"
+      ],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/tunein/disable",
+      "normalized": "audio/cfg/tunein/disable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/tunein/enable",
+      "normalized": "audio/cfg/tunein/enable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "wire_template": "audio/cfg/unsyncmulti/",
+      "normalized": "audio/cfg/unsyncmulti/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    }
+  ],
+  "cfg_commands": [
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.AIRPLAY.STATE",
+      "wire_template": "audio/cfg/airplay",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.AIRPLAY.DISABLE",
+      "wire_template": "audio/cfg/airplay/disable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.AIRPLAY.ENABLE",
+      "wire_template": "audio/cfg/airplay/enable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.AUDIO_DELAY_GET",
+      "wire_template": "audio/cfg/audiodelay/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.AUDIO_DELAY_SET",
+      "wire_template": "audio/cfg/audiodelay/%s/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.EQ",
+      "wire_template": "audio/cfg/equalizer",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.FAVORITES.ADD_EXTERNAL_ID",
+      "wire_template": "audio/cfg/favorites/addexternalid/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.FAVORITES.ADD_ID",
+      "wire_template": "audio/cfg/favorites/addid/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.FAVORITES.ADD_PATH",
+      "wire_template": "audio/cfg/favorites/addpath/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.FAVORITES.DELETE",
+      "wire_template": "audio/cfg/favorites/delete/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.FAVORITES.RENAME",
+      "wire_template": "audio/cfg/favorites/rename/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.GET_AVAILABLE",
+      "wire_template": "audio/cfg/getavailableservices",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getavailableservices"
+      ],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.INPUT.GET",
+      "wire_template": "audio/cfg/getinputs",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getinputs"
+      ],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.GETKEY",
+      "wire_template": "audio/cfg/getkey",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getkey/full"
+      ],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.AUDIO_STATUS_ALL",
+      "wire_template": "audio/cfg/getplayersdetails",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.GET_PLAYLIST_2",
+      "wire_template": "audio/cfg/getplaylists2/lms/%s/%s/0/50",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.RADIOS.GET",
+      "wire_template": "audio/cfg/getradios",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getradios"
+      ],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.GET_SERVICE_FOLDER",
+      "wire_template": "audio/cfg/getservicefolder/%s/%s/%s/%i/%i",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.GET",
+      "wire_template": "audio/cfg/getservices",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/getservices"
+      ],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SYNC.GET_SYNCED_PLAYERS",
+      "wire_template": "audio/cfg/getsyncedplayers",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.GLOBAL_SEARCH.BASE_CMD",
+      "wire_template": "audio/cfg/globalsearch/",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/globalsearch/describe",
+        "audio/cfg/globalsearch/local:track#5,album#5,artist#5,playlist#5,folder#5/hello",
+        "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/Rem",
+        "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/radiohea",
+        "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/radiohead"
+      ],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.GLOBAL_SEARCH.DESCRIBE",
+      "wire_template": "audio/cfg/globalsearch/describe",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/globalsearch/describe"
+      ],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.INPUT.SET.CMD",
+      "wire_template": "audio/cfg/input/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.INSTALLUPDATE",
+      "wire_template": "audio/cfg/installupdate",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.GETMAC",
+      "wire_template": "audio/cfg/mac",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.CREATE",
+      "wire_template": "audio/cfg/playlist/create",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.DELETE",
+      "wire_template": "audio/cfg/playlist/deletelist",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.FOLLOW",
+      "wire_template": "audio/cfg/playlist/follow",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.RENAME",
+      "wire_template": "audio/cfg/playlist/rename",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.PLAYLIST.UPDATE",
+      "wire_template": "audio/cfg/playlist/update",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/playlist/update/lms/nouser/qobuz:track:422318104/start"
+      ],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.UPD_LVL",
+      "wire_template": "audio/cfg/props/updatelevel",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.LIBRARY.RESCAN_ALL",
+      "wire_template": "audio/cfg/rescan",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.LIBRARY.RESCAN_SPECIFIC",
+      "wire_template": "audio/cfg/rescan/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.COPY_ZONE_FAVS",
+      "wire_template": "audio/cfg/roomfavs/%s/copy/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.LIBRARY.SCAN_STATUS",
+      "wire_template": "audio/cfg/scanstatus",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SEARCH.SELECTIVE",
+      "wire_template": "audio/cfg/search",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/search/spotify/qobuz/album/radiohead/0/50"
+      ],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SEARCH.BROWSE",
+      "wire_template": "audio/cfg/searchresult/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": true
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.CFG.GET",
+      "wire_template": "audio/cfg/servicecfg/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.CFG.SET",
+      "wire_template": "audio/cfg/servicecfg/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.CFG.DELETE",
+      "wire_template": "audio/cfg/servicecfg/delete/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.CFG.GET_LINK",
+      "wire_template": "audio/cfg/servicecfg/getlink/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.CFG.UPDATE",
+      "wire_template": "audio/cfg/servicecfg/update/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.SPOTIFY.CONNECT.STATE",
+      "wire_template": "audio/cfg/spotifyconnect",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.SPOTIFY.CONNECT.DISABLE",
+      "wire_template": "audio/cfg/spotifyconnect/disable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.SPOTIFY.CONNECT.ENABLE",
+      "wire_template": "audio/cfg/spotifyconnect/enable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.LIBRARY.ADD",
+      "wire_template": "audio/cfg/storage/add/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.LIBRARY.DELETE",
+      "wire_template": "audio/cfg/storage/delete/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.LIBRARY.EDIT",
+      "wire_template": "audio/cfg/storage/edit/%s/%s",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SETTINGS.LIBRARY.LIST",
+      "wire_template": "audio/cfg/storage/list",
+      "implementation": "observed_not_routed",
+      "rust_routes": [],
+      "observed_in_audit": [
+        "audio/cfg/storage/list"
+      ],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.RADIO.DISABLE",
+      "wire_template": "audio/cfg/tunein/disable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SERVICES.RADIO.ENABLE",
+      "wire_template": "audio/cfg/tunein/enable",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    },
+    {
+      "enum_path": "MediaEnum.Commands.SYNC.MULTI_UNSYNC",
+      "wire_template": "audio/cfg/unsyncmulti/",
+      "implementation": "ui_only",
+      "rust_routes": [],
+      "observed_in_audit": [],
+      "browse_related": false
+    }
+  ],
+  "zone_commands": [
+    {
+      "enum_path": "MediaEnum.AudioCommands.CFG.AUDIO_DELAY",
+      "wire_template": "audio/{playerid}/audiodelay",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.CFG.DEFAULT_VOLUME",
+      "wire_template": "audio/{playerid}/defaultvolume",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.CFG.EQUALIZER",
+      "wire_template": "audio/{playerid}/equalizer",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.CFG.MAX_VOLUME",
+      "wire_template": "audio/{playerid}/maxvolume",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.FAVORITE.PLAY",
+      "wire_template": "audio/{playerid}/favoriteplay/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.GET_SYNCED_PLAYERS",
+      "wire_template": "audio/{playerid}/getmysyncedplayers",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.IDENTIFY_SOURCE",
+      "wire_template": "audio/{playerid}/identifysource",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.LIBRARY.PLAY",
+      "wire_template": "audio/{playerid}/library/play/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.LINEIN.PLAY",
+      "wire_template": "audio/{playerid}/linein",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.MASTER_VOLUME.REQUEST",
+      "wire_template": "audio/{playerid}/mastervolume",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.MASTER_VOLUME.SET_TO",
+      "wire_template": "audio/{playerid}/mastervolume/",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.PAUSE",
+      "wire_template": "audio/{playerid}/pause",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.PLAY",
+      "wire_template": "audio/{playerid}/play",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.PLAYLIST.PLAY",
+      "wire_template": "audio/{playerid}/playlist/play/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.ADD",
+      "wire_template": "audio/{playerid}/queueadd/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.CLEAR",
+      "wire_template": "audio/{playerid}/queue/clear",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.GET",
+      "wire_template": "audio/{playerid}/getqueue",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.INSERT",
+      "wire_template": "audio/{playerid}/queueinsert/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.INSERT_AND_PLAY",
+      "wire_template": "audio/{playerid}/queueandplay/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.JUMP_TO",
+      "wire_template": "audio/{playerid}/queue/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.MOVE",
+      "wire_template": "audio/{playerid}/queuemove/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.NEXT",
+      "wire_template": "audio/{playerid}/queueplus",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.PREV",
+      "wire_template": "audio/{playerid}/queueminus",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.REMOVE",
+      "wire_template": "audio/{playerid}/queueremove/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.SAVE_AS_PLAYLIST",
+      "wire_template": "audio/{playerid}/playlist/save/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE.UNDO",
+      "wire_template": "audio/{playerid}/queueundo/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE_V2.MOVE_BEFORE",
+      "wire_template": "audio/{playerid}/queue/move/%s/before/%s",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE_V2.PLAY_ID",
+      "wire_template": "audio/{playerid}/queue/play/%s",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.QUEUE_V2.REMOVE",
+      "wire_template": "audio/{playerid}/queue/remove/%s",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.REPEAT.OFF",
+      "wire_template": "audio/{playerid}/repeat/0",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.REPEAT.PLAYLIST",
+      "wire_template": "audio/{playerid}/repeat/1",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.REPEAT.TRACK",
+      "wire_template": "audio/{playerid}/repeat/3",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEARCH.ADD",
+      "wire_template": "audio/{playerid}/addurl/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEARCH.INSERT",
+      "wire_template": "audio/{playerid}/inserturl/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEARCH.INSERT_AND_PLAY",
+      "wire_template": "audio/{playerid}/insertandplayurl/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEARCH.PLAY",
+      "wire_template": "audio/{playerid}/playurl/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEEK.BACKWARD_BY",
+      "wire_template": "audio/{playerid}/position/-",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEEK.FORWARD_BY",
+      "wire_template": "audio/{playerid}/position/+",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SEEK.TO",
+      "wire_template": "audio/{playerid}/position/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SERVICE.ADD",
+      "wire_template": "audio/{playerid}/serviceplayadd/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SERVICE.INSERT",
+      "wire_template": "audio/{playerid}/serviceplayinsert/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SERVICE.INSERT_AND_PLAY",
+      "wire_template": "audio/{playerid}/serviceplayinsertandplay/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SERVICE.PLAY",
+      "wire_template": "audio/{playerid}/serviceplay/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SHUFFLE.OFF",
+      "wire_template": "audio/{playerid}/shuffle/0",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SHUFFLE.ON",
+      "wire_template": "audio/{playerid}/shuffle/1",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.STATUS",
+      "wire_template": "audio/{playerid}/status",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.SYNC",
+      "wire_template": "audio/{playerid}/sync/",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.UNSYNC",
+      "wire_template": "audio/{playerid}/unsync",
+      "category": "other"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.VOLUME.DOWN",
+      "wire_template": "audio/{playerid}/voldown",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.VOLUME.DOWN_BY",
+      "wire_template": "audio/{playerid}/volume/-",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.VOLUME.REQUEST",
+      "wire_template": "audio/{playerid}/volume",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.VOLUME.SET_TO",
+      "wire_template": "audio/{playerid}/volume/",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.VOLUME.UP",
+      "wire_template": "audio/{playerid}/volup",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.VOLUME.UP_BY",
+      "wire_template": "audio/{playerid}/volume/+",
+      "category": "transport"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.DELETE",
+      "wire_template": "audio/{playerid}/roomfav/delete/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.PLAY",
+      "wire_template": "audio/{playerid}/roomfav/play/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.SAVE",
+      "wire_template": "audio/{playerid}/roomfav/save/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.SAVE_EXTERNAL",
+      "wire_template": "audio/{playerid}/roomfav/saveexternalid/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.SAVE_INPUT",
+      "wire_template": "audio/{playerid}/roomfav/saveinput/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.SAVE_LOCAL",
+      "wire_template": "audio/{playerid}/roomfav/saveid/",
+      "category": "browse_or_play"
+    },
+    {
+      "enum_path": "MediaEnum.AudioCommands.ZONE_FAV.SAVE_PATH",
+      "wire_template": "audio/{playerid}/roomfav/savepath/",
+      "category": "browse_or_play"
+    }
+  ],
+  "rust_routes": [],
+  "audit_commands": [
+    {
+      "command": "audio/1/getqueue/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/1/pause",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/play",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/position/140",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/position/48",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/position/81",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/queueminus",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/queueplus",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/recent",
+      "browse_related": true
+    },
+    {
+      "command": "audio/1/repeat/1",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/volume/+1",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/volume/-1",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/volume/10",
+      "browse_related": false
+    },
+    {
+      "command": "audio/1/volume/11",
+      "browse_related": false
+    },
+    {
+      "command": "audio/3/getqueue/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/loudness",
+      "browse_related": false
+    },
+    {
+      "command": "audio/3/pause",
+      "browse_related": false
+    },
+    {
+      "command": "audio/3/playlist/play/qobuz:track:422318101",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/playlist/play/qobuz:track:422318101/noshuffle",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/playlist/play/qobuz:track:422318103",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/playlist/play/qobuz:track:422318103/noshuffle",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/playlist/play/qobuz:track:422318105",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/playlist/play/qobuz:track:422318105/noshuffle",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/recent",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/serviceplay/spotify/qobuz/qobuz:album:trrcz9pvaaz6b/?q&ZW5mb3JjZVVzZXI9dHJ1ZQ",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/serviceplay/spotify/qobuz/qobuz:playlist:64085790/?q&ZW5mb3JjZVVzZXI9dHJ1ZQ",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/serviceplay/spotify/qobuz/qobuz:playlist:64085790/noshuffle/?q&ZW5mb3JjZVVzZXI9dHJ1ZQ",
+      "browse_related": true
+    },
+    {
+      "command": "audio/3/volume/+1",
+      "browse_related": false
+    },
+    {
+      "command": "audio/3/volume/-1",
+      "browse_related": false
+    },
+    {
+      "command": "audio/4/recent",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/diagnosis",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/getavailableservices",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getconfig",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/geteq/3",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/getinputs",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/getkey/full",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/getmediafolder/0/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getplaylists2/lms/nouser/0/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getplaylists2/lms/nouser/0/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getplaylists2/lms/nouser/qobuz:track:422318104/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getradios",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getroomfavs/1/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getroomfavs/3/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getroomfavs/4/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getroomfavs/all",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/custom/custom/start/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/custom/custom/start/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/local/local/start/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/local/local/start/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/0/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/1/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/2/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/3/0/20",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/3/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/6/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/6/100/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/6/50/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/genres:112/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/genres:80/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/qobuz:album:euwm523d8n0x0/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/qobuz:album:m4tdldaf9n99d/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/qobuz:album:trrcz9pvaaz6b/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/qobuz:artist:2489921/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/qobuz:artist:43839/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservicefolder/spotify/qobuz/qobuz:playlist:64085790/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/getservices",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/describe",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/local:track#5,album#5,artist#5,playlist#5,folder#5/hello",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/Rem",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/radiohea",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/radiohead",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/t",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/tin",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/tinderstick",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/spotify@qobuz:track#5,album#5,artist#5,playlist#5,episode#5,show#5/tindersticks",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/tunein:station#5,custom#5/hellosd",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/globalsearch/tunein:station#5,custom#5/radio",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/groupopts/eyJncm91cHMiOltdfQ",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/isfollowed/spotify/qobuz/qobuz:album:euwm523d8n0x0",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/isfollowed/spotify/qobuz/qobuz:artist:2489921",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/isfollowed/spotify/qobuz/qobuz:track:33933680",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniserverip/192.168.60.12/255.255.255.0/192.168.60.1/192.168.60.1,195.121.1.66/192.168.50.204/dhcp",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniserverip/192.168.60.12/255.255.255.0/192.168.60.1/192.168.60.1,195.121.1.66/192.168.50.238/dhcp",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1779295656",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1779295666",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1779302663",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1779302673",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780832148",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780832156",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780833056",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780833683",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780833691",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780834304",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780834312",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780834402",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780834410",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780835311",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780835519",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780835526",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780836427",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780836571",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780836579",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780836680",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780836688",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780847292",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780847300",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780847918",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780847926",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780848693",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780848700",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780849477",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780849485",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780850080",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780850088",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780850989",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780851891",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780852794",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniservertime/1780853697",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/miniserverversion/17.0.3.31/17.0.3.31",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/playername/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwibmFtZSI6IlV0aWxpdHkgUm9vbSJ9XX0",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/playername/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MywibmFtZSI6IkJlZHJvb20ifSx7InBsYXllcmlkIjo0LCJuYW1lIjoiQmFsY29ueSJ9XX0",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/playeropts/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwicmYiOiJvZmYiLCJsb2NrIjoib2ZmIiwiYXAiOiJvbiIsInNwIjoib24ifV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/playeropts/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MywicmYiOiJvZmYiLCJsb2NrIjoib2ZmIiwiYXAiOiJvZmYiLCJzcCI6Im9mZiJ9LHsicGxheWVyaWQiOjQsInJmIjoib2ZmIiwibG9jayI6Im9mZiIsImFwIjoib2ZmIiwic3AiOiJvZmYifV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/playlist/update/lms/nouser/qobuz:track:422318104/start",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/presencemode/1/off",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/presencemode/3,4/off",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/ready",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/search/spotify/qobuz/album/radiohead/0/50",
+      "browse_related": true
+    },
+    {
+      "command": "audio/cfg/setconfigtimestamp/1779215107",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/setconfigtimestamp/1780830003",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/speakertype/eyJzcGVha2VycyI6W3siaWQiOiI1MDRGOTRGRjFCQjMjMSIsInNwZWFrZXJUeXBlIjozfSx7ImlkIjoiNTA0Rjk0RkYxQkIzIzMiLCJzcGVha2VyVHlwZSI6M31dfQ",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/speakertype/eyJzcGVha2VycyI6W3siaWQiOiI4RTA5RjdENUFEREIjMSIsInNwZWFrZXJUeXBlIjozfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/storage/list",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/timezone/Europe/Vienna",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwiZGVmYXVsdCI6MTAsImFsYXJtIjo3NSwiZmlyZSI6NzUsImJlbGwiOjM1LCJidXp6ZXIiOjEwLCJ0dHMiOjIwLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwiZGVmYXVsdCI6MTAsImFsYXJtIjo3NSwiZmlyZSI6NzUsImJlbGwiOjM1LCJidXp6ZXIiOjEwLCJ0dHMiOjIxLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwiZGVmYXVsdCI6MTAsImFsYXJtIjo3NSwiZmlyZSI6NzUsImJlbGwiOjM1LCJidXp6ZXIiOjExLCJ0dHMiOjIwLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwiZGVmYXVsdCI6MTAsImFsYXJtIjo3NSwiZmlyZSI6NzUsImJlbGwiOjM2LCJidXp6ZXIiOjEwLCJ0dHMiOjIwLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwiZGVmYXVsdCI6MTAsImFsYXJtIjo3NiwiZmlyZSI6NzYsImJlbGwiOjM1LCJidXp6ZXIiOjEwLCJ0dHMiOjIwLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MSwiZGVmYXVsdCI6MTEsImFsYXJtIjo3NSwiZmlyZSI6NzUsImJlbGwiOjM1LCJidXp6ZXIiOjEwLCJ0dHMiOjIwLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfV19",
+      "browse_related": false
+    },
+    {
+      "command": "audio/cfg/volumes/eyJwbGF5ZXJzIjpbeyJwbGF5ZXJpZCI6MywiZGVmYXVsdCI6MTAsImFsYXJtIjo3NSwiZmlyZSI6NzUsImJlbGwiOjM1LCJidXp6ZXIiOjEwLCJ0dHMiOjIwLCJ2b2xzdGVwIjoxLCJmYWRpbmciOjAsIm1heFZvbHVtZSI6MTAwfSx7InBsYXllcmlkIjo0LCJkZWZhdWx0IjoxMCwiYWxhcm0iOjc1LCJmaXJlIjo3NSwiYmVsbCI6MzUsImJ1enplciI6MTAsInR0cyI6MjAsInZvbHN0ZXAiOjEsImZhZGluZyI6MCwibWF4Vm9sdW1lIjoxMDB9XX0",
+      "browse_related": false
+    },
+    {
+      "command": "audio/grouped/tts/1/ENU|20",
+      "browse_related": false
+    },
+    {
+      "command": "audio/grouped/tts/1/ENU|21",
+      "browse_related": false
+    }
+  ]
+}

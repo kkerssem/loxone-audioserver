@@ -1,0 +1,14 @@
+{
+    "version": "1.4.0",
+    "changestamp": "0",
+    "name": "Power",
+    "ussi": "power",
+    "class": "object.power",
+    "cpu": "136",
+    "powerMode": "0",
+    "powerServices": "6",
+    "serverMode": "0",
+    "standbyTimeout": "5",
+    "state": "on",
+    "system": "on"
+}

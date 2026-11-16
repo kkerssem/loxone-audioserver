@@ -1,0 +1,20 @@
+{
+  "source": "recents.rs sample_item shape for V2 RecentlyPlayedBasedItemSchema",
+  "recent_result": {
+    "ts": 1716478021,
+    "items": [
+      {
+        "audiopath": "qobuz:track:12345",
+        "coverurl": "http://example/cover.jpg",
+        "title": "Come Together",
+        "artist": "The Beatles",
+        "album": "Abbey Road",
+        "owner": "qobuz",
+        "owner_id": "qobuz",
+        "service": "spotify",
+        "serviceType": 3,
+        "type": 2
+      }
+    ]
+  }
+}

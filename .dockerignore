@@ -1,0 +1,15 @@
+target/
+.git/
+.github/
+reference/
+*.log
+audioserver-config.json
+custom-radios.json
+zone-config.json
+state.json
+state.raw
+custom-radio-covers/
+recents/
+command-audit.log
+private.pem
+voice-uploads/

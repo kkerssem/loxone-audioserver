@@ -1,0 +1,52 @@
+[
+  {
+    "playId": {
+      "systemMemberId": "naims810x-c2376dfe-eb62-461c-8a48-8738b85926f5",
+      "timestamp": 545816649
+    },
+    "mediaRoles": {
+      "mediaData": {
+        "metaData": {
+          "playLogicPath": "qobuzconnect:/playlogic",
+          "serviceID": "qobuzconnect"
+        }
+      },
+      "doNotTrack": true,
+      "title": "Qobuz Connect",
+      "audioType": "audioBroadcast",
+      "type": "audio"
+    },
+    "controls": {
+      "pause": true,
+      "next_": true,
+      "playMode": {
+        "shuffle": true,
+        "shuffleRepeatOne": true,
+        "repeatOne": true,
+        "shuffleRepeatAll": true,
+        "repeatAll": true
+      },
+      "seekTime": true,
+      "previous": true
+    },
+    "status": {
+      "duration": 436240
+    },
+    "trackRoles": {
+      "mediaData": {
+        "metaData": {
+          "artist": "Songs: Ohia",
+          "playLogicPath": "qobuzconnect:/playlogic",
+          "album": "The Lioness",
+          "serviceID": "qobuzconnect"
+        }
+      },
+      "doNotTrack": true,
+      "icon": "https://static.qobuz.com/images/covers/61/30/0656605003061_600.jpg",
+      "title": "The Black Crow",
+      "audioType": "audioBroadcast",
+      "type": "audio"
+    },
+    "state": "playing"
+  }
+]

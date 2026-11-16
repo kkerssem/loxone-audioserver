@@ -1,0 +1,16 @@
+{
+  "head": { "title": "TuneIn" },
+  "body": [
+    {
+      "text": "Local Radio",
+      "URL": "http://opml.radiotime.com/Browse.ashx?c=local",
+      "key": "local",
+      "guide_id": "local"
+    },
+    {
+      "text": "Music",
+      "URL": "http://opml.radiotime.com/Browse.ashx?c=music",
+      "key": "music"
+    }
+  ]
+}

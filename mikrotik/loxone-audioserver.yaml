@@ -1,0 +1,70 @@
+# MikroTik App definition for loxone-audioserver (RouterOS 7.26+ with the container package).
+#
+# This file contains no secrets: the Miniserver pairing key (private.pem) is created by the
+# audioserver itself on first start and kept in the data volume. Add it as it is:
+#   /app/add yaml=[/file/get loxone-audioserver.yaml contents]
+# then set AUDIOSERVER_SERIAL below on the router before /app/enable. Until it is set, the
+# service stops at startup with a message saying so. Keep the serial of an existing install
+# (and copy its private.pem and audioserver-config.json into the volume), so the Miniserver
+# does not need pairing again. See README, "MikroTik App".
+#
+# The app gets its own VETH on an existing bridge, so it has its own address on the LAN:
+# mDNS discovery of Cast and KEF/Naim/B&O speakers, Loxone Config's UDP broadcast on 7070,
+# the Miniserver's connection to 7095 and Cast devices fetching covers and voice messages
+# from 7091 all need that. Give the address a static DHCP lease: the Miniserver configuration
+# stores the audioserver's IP.
+#
+# `lan` below is the bridge set as lan-bridge in /app/settings; put a bridge name there to use
+# another bridge. For a VLAN on a vlan-filtering bridge, set the app property network-pvid
+# after /app/add and before /app/enable: /app/set loxone-audioserver network-pvid=<vlan-id>
+# (it is not a YAML field).
+#
+# Also set /app/set loxone-audioserver use-https=no before enabling: the app has no web page
+# for RouterOS's reverse proxy, and with the default use-https=yes it never starts.
+# The image package on ghcr.io must be public; the app pulls without a registry login.
+
+name: loxone-audioserver
+descr: Software Loxone Audioserver for LAN speakers (KEF, Naim, B&O, Cast radio)
+# free-form group in the app list
+category: multimedia
+supported-archs:
+  - arm64
+
+networks:
+  default:
+    name: lan
+    external: true
+
+volumes:
+  data:
+
+services:
+  audioserver:
+    image: ghcr.io/kkerssem/loxone-audioserver:latest
+    # no `command`: the image's entrypoint is the audioserver, configured by the environment below
+    restart: always
+    # healthy while ports 7091 and 7095 accept connections; the image has no shell or
+    # wget, so the binary checks itself. Same as the image's HEALTHCHECK in the Dockerfile
+    # (keep them in sync); repeated here because the RouterOS documentation does not say
+    # whether an App uses the image's own healthcheck.
+    healthcheck:
+      test: ["CMD", "/loxone-audioserver", "health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # config, pairing key, recents, custom radios and voice messages
+    volumes:
+      - data:/data
+    environment:
+      # the audioserver serial, 12 hex digits as configured in Loxone Config
+      # (e.g. 504F94FF1BB3); required
+      AUDIOSERVER_SERIAL: ""
+      # name shown in Loxone Config's discovery
+      AUDIOSERVER_NAME: Loxone Audioserver
+      # optional: address clients use for covers and voice messages on 7091; empty means the
+      # app's own address, which is what you want on its own VETH
+      AUDIOSERVER_PUBLIC_HOST: ""
+      # RouterOS adds its own timestamp to each log line
+      LOG_TIMESTAMPS: "false"
+      RUST_LOG: info

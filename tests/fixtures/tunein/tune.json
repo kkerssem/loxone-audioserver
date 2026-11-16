@@ -1,0 +1,23 @@
+{
+  "head": { "title": "Jazz FM" },
+  "body": [
+    {
+      "bitrate": 128,
+      "element": "audio",
+      "is_direct": true,
+      "is_hls_advanced": "false",
+      "media_type": "audio/mpeg",
+      "reliability": 90,
+      "url": "https://stream.example/jazz.mp3"
+    },
+    {
+      "bitrate": 96,
+      "element": "audio",
+      "is_direct": false,
+      "is_hls_advanced": "true",
+      "media_type": "application/vnd.apple.mpegurl",
+      "reliability": 95,
+      "url": "https://stream.example/jazz.m3u8"
+    }
+  ]
+}

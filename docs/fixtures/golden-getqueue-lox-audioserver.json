@@ -1,0 +1,49 @@
+{
+  "source": "lox-audioserver dev — zoneHandlers.audioCfgGetQueue + QueueItem (queueTypes.ts)",
+  "command": "audio/1/getqueue/0/50",
+  "getqueue_result": [
+    {
+      "id": 1,
+      "items": [
+        {
+          "album": "Album One",
+          "artist": "Artist",
+          "audiopath": "spotify:track:4uLU6hMCjMI75M1A2tKUQC",
+          "audiotype": 5,
+          "coverurl": "https://example.com/cover.jpg",
+          "duration": 180,
+          "qindex": 0,
+          "station": "",
+          "title": "One",
+          "unique_id": "a1b2c3d4e5f6",
+          "user": "listener@example.com"
+        },
+        {
+          "album": "Album Two",
+          "artist": "Artist",
+          "audiopath": "spotify:track:two",
+          "audiotype": 5,
+          "coverurl": "",
+          "duration": 200,
+          "qindex": 1,
+          "station": "",
+          "title": "Two",
+          "unique_id": "f6e5d4c3b2a1",
+          "user": "listener@example.com"
+        }
+      ],
+      "shuffle": false,
+      "start": 0,
+      "totalitems": 2
+    }
+  ],
+  "notes": {
+    "wrapper_fields_reference": ["id", "items", "shuffle", "start", "totalitems"],
+    "wrapper_fields_ours_legacy": ["playerid", "queue"],
+    "row_fields_reference": ["album", "artist", "audiopath", "audiotype", "coverurl", "duration", "qindex", "station", "title", "unique_id", "user"],
+    "row_fields_ours_extra": [],
+    "row_fields_omit_on_wire": "type, service, serviceType — reference QueueItem does not send them; legacy QueueLoader derives type from audiotype",
+    "unique_id_reference": "generateQueueId() — 12 lowercase hex chars (Math.random().toString(16).slice(2, 14))",
+    "legacy_audiozoneext_requires": "result element must have playerid and queue array (scripts6.js _handleGetQueueResult)"
+  }
+}

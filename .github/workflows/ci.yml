@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust:
+    name: Rust format, lint, tests, coverage, and audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, llvm-tools-preview
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libjack-jackd2-dev libsqlite3-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Format
+        run: cargo fmt --check
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+      - name: Security audit
+        run: cargo audit
+      - name: Clippy
+        # llvm-cov uses instrument-coverage flags; a separate clippy build duplicates the full compile.
+        if: github.event_name == 'pull_request'
+        run: cargo clippy -- -D warnings
+      - name: Test and coverage gate
+        run: ./scripts/coverage.sh
+      - name: Coverage report
+        if: always()
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: target/llvm-cov/cobertura.xml
+          badge: true
+          format: markdown
+          output: both
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Docker ARM64 image build and push
+    needs: rust
+    # Pushed from main and from v* tags; building it on PRs cost ~5 min for no artifact.
+    # Tags: the 7-character commit sha, `latest` on main, and `1.2.3` for a `v1.2.3` git tag.
+    # A MikroTik App pulls without logging in, so the ghcr.io package must be public.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Summary
+        run: |
+          {
+            echo "### Pushed"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

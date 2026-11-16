@@ -1,0 +1,19 @@
+{
+  "head": { "title": "NPO 3FM", "status": "200" },
+  "body": [
+    {
+      "element": "outline",
+      "text": "You may also like",
+      "key": "recommendations",
+      "children": [
+        {
+          "element": "outline",
+          "item": "station",
+          "text": "Qmusic Het Foute Uur",
+          "guide_id": "s210434",
+          "image": "http://cdn-profiles.tunein.com/s210434/images/logoq.jpg?t=1"
+        }
+      ]
+    }
+  ]
+}

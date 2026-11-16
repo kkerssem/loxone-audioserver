@@ -1,0 +1,50 @@
+[package]
+name = "loxone-audioserver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.23"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["ws", "macros"] }
+urlencoding = "2"
+clap = { version = "4", features = ["derive", "env"] }
+mdns-sd = "0.21"
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["fs", "macros", "net", "sync", "rt-multi-thread", "signal", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
+
+# Miniserver / remote protocol stack
+matchit = { version = "0.9", optional = true }
+crc32fast = { version = "1", optional = true }
+rand = { version = "0.10", optional = true }
+rsa = { version = "0.10", optional = true, features = ["pkcs1v15"] }
+# rsa 0.10 has no `pem` feature; PEM encoding comes from these (same versions rsa uses).
+pkcs1 = { version = "0.8", optional = true, features = ["pem"] }
+pkcs8 = { version = "0.11", optional = true, features = ["pem"] }
+jsonwebtoken = { version = "11", default-features = false, features = ["use_pem", "aws_lc_rs"], optional = true }
+x509-cert = { version = "0.3", features = ["pem"], optional = true }
+sha2 = { version = "0.11", optional = true }
+sha1 = { version = "0.11", optional = true }
+tower-http = { version = "0.7", features = ["cors"], optional = true }
+oxicast = { version = "0.0.3", default-features = false, features = ["discovery"] }
+
+[dev-dependencies]
+serial_test = { version = "4", features = ["async"] }
+
+[features]
+default = ["miniserver"]
+miniserver = ["matchit", "crc32fast", "rand", "rsa", "pkcs1", "pkcs8", "jsonwebtoken", "x509-cert", "sha2", "sha1", "tower-http"]
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = "abort"

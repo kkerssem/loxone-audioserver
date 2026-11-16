@@ -1,0 +1,46 @@
+[
+  {
+    "status": {
+      "duration": 0
+    },
+    "trackRoles": {
+      "audioType": "audioBroadcast",
+      "description": "",
+      "title": "NPO Radio 2",
+      "mediaData": {
+        "metaData": {
+          "externalAppName": "Default Media Receiver",
+          "serviceNameOverride": "Casting Default Media Receiver"
+        }
+      }
+    },
+    "playId": {
+      "timestamp": 5057671332,
+      "systemMemberId": "ls60w-444ca1e2-463e-4c3a-8877-18d46bc61e65"
+    },
+    "controls": {
+      "pause": true,
+      "playMode": {},
+      "previous": true,
+      "next_": true
+    },
+    "mediaRoles": {
+      "timestamp": 1794664491301,
+      "audioType": "audioBroadcast",
+      "description": "Google Cast",
+      "icon": "skin:iconGooglecast",
+      "title": "Google Cast",
+      "doNotTrack": true,
+      "mediaData": {
+        "metaData": {
+          "playLogicPath": "googlecastlite:playlogic",
+          "serviceID": "googlecast",
+          "live": true
+        }
+      },
+      "type": "audio",
+      "path": "googlecastlite:playlogic/Default Media Receiver"
+    },
+    "state": "paused"
+  }
+]
