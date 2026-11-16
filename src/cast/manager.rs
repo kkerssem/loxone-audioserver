@@ -28,6 +28,8 @@ struct RadioZoneState {
     _cast_device: CastDeviceInfo,
     client: CastClient,
     _listener: JoinHandle<()>,
+    /// Number of this radio session; its listener tags `SessionEnded` with it.
+    session: u64,
     mode: Mode,
     volume: u8,
     muted: bool,
@@ -41,19 +43,28 @@ const LOCAL_VOLUME_ECHO_GUARD: Duration = Duration::from_secs(2);
 
 async fn send_session_ended(
     player_id: usize,
+    session: u64,
     update_tx: &mpsc::Sender<CastRemoteUpdate>,
     reason: &str,
     force: bool,
 ) -> bool {
-    info!(player_id, reason, force, "cast radio session ended");
+    info!(
+        player_id,
+        session, reason, force, "cast radio session ended"
+    );
     update_tx
-        .send(CastRemoteUpdate::SessionEnded { player_id, force })
+        .send(CastRemoteUpdate::SessionEnded {
+            player_id,
+            session,
+            force,
+        })
         .await
         .is_ok()
 }
 
 fn spawn_cast_listener(
     player_id: usize,
+    session: u64,
     client: CastClient,
     update_tx: mpsc::Sender<CastRemoteUpdate>,
 ) -> JoinHandle<()> {
@@ -67,6 +78,7 @@ fn spawn_cast_listener(
                         && cast_receiver_lost_media_app(&status)
                         && send_session_ended(
                             player_id,
+                            session,
                             &update_tx,
                             "receiver lost Default Media Receiver app",
                             false,
@@ -103,6 +115,7 @@ fn spawn_cast_listener(
                         && cast_media_session_ended(&status)
                         && send_session_ended(
                             player_id,
+                            session,
                             &update_tx,
                             "media idle with reason",
                             false,
@@ -125,14 +138,24 @@ fn spawn_cast_listener(
                     // receiver volume — do not mirror it to Loxone (causes pause → 100% bug).
                 }
                 CastEvent::MediaSessionEnded { .. } => {
-                    if send_session_ended(player_id, &update_tx, "MediaSessionEnded", false).await {
+                    if send_session_ended(
+                        player_id,
+                        session,
+                        &update_tx,
+                        "MediaSessionEnded",
+                        false,
+                    )
+                    .await
+                    {
                         session_ended = true;
                         break;
                     }
                 }
                 CastEvent::Disconnected(reason) => {
                     warn!(player_id, ?reason, "cast disconnected; clearing radio zone");
-                    let _ = send_session_ended(player_id, &update_tx, "disconnected", true).await;
+                    let _ =
+                        send_session_ended(player_id, session, &update_tx, "disconnected", true)
+                            .await;
                     session_ended = true;
                     break;
                 }
@@ -140,7 +163,7 @@ fn spawn_cast_listener(
             }
         }
         if !session_ended {
-            let _ = send_session_ended(player_id, &update_tx, "listener exit", true).await;
+            let _ = send_session_ended(player_id, session, &update_tx, "listener exit", true).await;
         }
     })
 }
@@ -149,6 +172,8 @@ pub struct CastPlaybackManager {
     zones: HashMap<usize, RadioZoneState>,
     discovery_timeout: Duration,
     update_tx: mpsc::Sender<CastRemoteUpdate>,
+    /// Number given to the next radio session.
+    next_session: u64,
 }
 
 impl CastPlaybackManager {
@@ -157,6 +182,7 @@ impl CastPlaybackManager {
             zones: HashMap::new(),
             discovery_timeout: Duration::from_secs(3),
             update_tx,
+            next_session: 1,
         }
     }
 
@@ -169,6 +195,11 @@ impl CastPlaybackManager {
 
     pub fn zone_is_radio(&self, player_id: usize) -> bool {
         self.zones.contains_key(&player_id)
+    }
+
+    /// Number of the zone's current radio session, if it has one.
+    pub fn radio_session(&self, player_id: usize) -> Option<u64> {
+        self.zones.get(&player_id).map(|zone| zone.session)
     }
 
     /// Remove zone state immediately; disconnect Cast in the background (non-blocking).
@@ -197,7 +228,10 @@ impl CastPlaybackManager {
         let content_type = resolved.content_type.clone();
 
         let (cast_device, client) = connect_zone_cast(player_id.0, self.discovery_timeout).await?;
-        let listener = spawn_cast_listener(player_id.0, client.clone(), self.update_tx.clone());
+        let session = self.next_session;
+        self.next_session += 1;
+        let listener =
+            spawn_cast_listener(player_id.0, session, client.clone(), self.update_tx.clone());
         cast_load_stream(&client, &stream_url, &title, &content_type).await?;
 
         info!(
@@ -235,6 +269,7 @@ impl CastPlaybackManager {
                 _cast_device: cast_device,
                 client,
                 _listener: listener,
+                session,
                 mode: Mode::Play,
                 volume,
                 muted,
