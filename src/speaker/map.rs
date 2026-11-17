@@ -95,6 +95,10 @@ pub fn status_to_player_state(playerid: Playerid, status: &SpeakerStatus) -> Pla
     state.cover_revision = status.play_session.clone();
     state.duration = status.duration_s;
     state.time = status.position_s.max(0);
+    // Radio from the speaker's own app gets an audiopath, so it can be a room favorite.
+    if let Some(station) = &status.station {
+        state.audiopath = station.audiopath.clone();
+    }
     // Same convention as Cast radio (`radio::build_radio_player_state`): station mirrors title.
     state.station = if status.live {
         status.title.clone()
@@ -122,6 +126,26 @@ mod tests {
             play_session: "77".into(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn speaker_station_becomes_the_audiopath() {
+        let radio = SpeakerStatus {
+            live: true,
+            station: Some(std::sync::Arc::new(crate::speaker::SpeakerStation {
+                audiopath: "speaker:radio:0a1b2c3d".into(),
+                media: serde_json::json!({"path": "vtuner:x"}),
+            })),
+            ..playing()
+        };
+        assert_eq!(
+            status_to_player_state(Playerid(2), &radio).audiopath,
+            "speaker:radio:0a1b2c3d"
+        );
+        assert_eq!(
+            status_to_player_state(Playerid(2), &playing()).audiopath,
+            ""
+        );
     }
 
     #[test]

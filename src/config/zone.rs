@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// One persisted room favorite for a Loxone player zone (`getroomfavs_result.items` row).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RoomFavItem {
     pub id: usize,
     pub slot: usize,
@@ -25,10 +25,17 @@ pub struct RoomFavItem {
     pub service_type: u8,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub owner: String,
+    /// Speaker API (`naim_stream800`, `kef_stream800`) of a station the zone's speaker played
+    /// from its own app; empty for every other favorite.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub speaker_kind: String,
+    /// That speaker's own description of the station, sent back to it to play the favorite.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speaker_media: Option<serde_json::Value>,
 }
 
 /// One Loxone player zone and its playback backends (speaker control, Google Cast radio).
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct PlayerMapping {
     pub player_id: usize,
     #[serde(default)]
@@ -156,7 +163,7 @@ fn is_false(v: &bool) -> bool {
 ///
 /// Legacy Qobuz keys (`email`, `user_auth_token`, `last_queue_item_id`, per-player `qobuz_*`) are
 /// ignored on load and dropped on the next save.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ZoneConfigBody {
     #[serde(default)]
     pub players: Vec<PlayerMapping>,
@@ -402,6 +409,8 @@ mod tests {
             service: "spotify".into(),
             service_type: 3,
             owner: String::new(),
+            speaker_kind: String::new(),
+            speaker_media: None,
         };
         let json = serde_json::to_value(&item).unwrap();
         assert!(json.get("coverurl").is_none());

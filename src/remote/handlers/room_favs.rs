@@ -9,7 +9,9 @@ use crate::player_state::Playerid;
 use crate::remote::{IoCommand, IoEvent, PlayOpts, RoomFavsResult};
 use crate::room_favs::{
     self, audiopath_for_playback, decode_segment, parse_add_tail, FavoriteMetadata, RoomFavPage,
+    StationSource,
 };
+use crate::speaker::STATION_AUDIOPATH_PREFIX;
 use crate::wire_response::build_wire_result_response;
 
 use super::super::Api;
@@ -21,6 +23,32 @@ impl Api {
             playerid: player_id,
             count,
         });
+    }
+
+    /// For a station the zone's speaker plays from its own app: its description, to keep with
+    /// the favorite. Refused when that station is no longer what the speaker plays.
+    async fn speaker_station_for_add(
+        &self,
+        player_id: usize,
+        audiopath: &str,
+    ) -> anyhow::Result<Option<StationSource>> {
+        if !audiopath.starts_with(STATION_AUDIOPATH_PREFIX) {
+            return Ok(None);
+        }
+        let (reply, rx) = oneshot::channel();
+        self.sender
+            .send(IoCommand::SpeakerStation {
+                player_id: Playerid(player_id),
+                reply,
+            })
+            .await?;
+        match rx.await.context("speaker station reply dropped")? {
+            Some((kind, station)) if station.audiopath == audiopath => Ok(Some(StationSource {
+                kind,
+                media: station.media,
+            })),
+            _ => anyhow::bail!("station {audiopath} is no longer playing on the speaker"),
+        }
     }
 
     async fn favorite_metadata_for_add(
@@ -109,8 +137,9 @@ impl Api {
         match action.as_str() {
             "add" => {
                 let (name, audiopath) = parse_add_tail(rest)?;
+                let station = self.speaker_station_for_add(playerid, &audiopath).await?;
                 let meta = self.favorite_metadata_for_add(playerid, &audiopath).await;
-                let item = room_favs::add(playerid, &name, &audiopath, meta)?;
+                let item = room_favs::add(playerid, &name, &audiopath, meta, station)?;
                 self.emit_room_fav_changed(playerid);
                 build_wire_result_response(
                     "roomfavs_add_result",
@@ -223,14 +252,21 @@ impl Api {
             .context("invalid favorite id")?;
         let fav = room_favs::lookup(playerid.0, favorite_id)
             .with_context(|| format!("favorite {favorite_id} not found"))?;
-        let audiopath = audiopath_for_playback(&fav.audiopath);
-        let opts = PlayOpts {
-            id: audiopath,
-            session_token: self.session_token.clone(),
+        let command_for_fav = match fav.speaker_media {
+            Some(media) => IoCommand::PlaySpeakerStation {
+                player_id: playerid,
+                kind: fav.speaker_kind,
+                media,
+            },
+            None => IoCommand::Play(
+                playerid,
+                Some(PlayOpts {
+                    id: audiopath_for_playback(&fav.audiopath),
+                    session_token: self.session_token.clone(),
+                }),
+            ),
         };
-        self.sender
-            .send(IoCommand::Play(playerid, Some(opts)))
-            .await?;
+        self.sender.send(command_for_fav).await?;
         build_wire_result_response(
             "roomfav_result",
             json!([{ "playerid": playerid.0, "playing_slot": favorite_id }]),
@@ -280,7 +316,10 @@ impl Api {
         let (tx, rx) = oneshot::channel();
         self.sender.send(IoCommand::Status(playerid, tx)).await?;
         let state = rx.await.context("status reply dropped")?;
-        let item = room_favs::add_from_player_state(playerid.0, &state)?;
+        let station = self
+            .speaker_station_for_add(playerid.0, &state.audiopath)
+            .await?;
+        let item = room_favs::add_from_player_state(playerid.0, &state, station)?;
         self.emit_room_fav_changed(playerid.0);
         build_wire_result_response(
             "roomfavs_add_result",
@@ -309,8 +348,9 @@ impl Api {
             .map(decode_segment)
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "Favorite".to_string());
+        let station = self.speaker_station_for_add(playerid, rest).await?;
         let meta = self.favorite_metadata_for_add(playerid, rest).await;
-        let item = room_favs::add(playerid, &name, rest, meta)?;
+        let item = room_favs::add(playerid, &name, rest, meta, station)?;
         self.emit_room_fav_changed(playerid);
         build_wire_result_response(
             "roomfavs_add_result",

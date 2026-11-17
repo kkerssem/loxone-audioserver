@@ -256,6 +256,7 @@ mod tests {
                     "A",
                     "tunein:station:s1",
                     room_favs::FavoriteMetadata::default(),
+                    None,
                 )
                 .unwrap();
                 room_favs::add(
@@ -263,6 +264,7 @@ mod tests {
                     "B",
                     "tunein:station:s2",
                     room_favs::FavoriteMetadata::default(),
+                    None,
                 )
                 .unwrap();
                 let mut config = ZoneConfig::get();
@@ -299,6 +301,8 @@ mod tests {
             service: "tunein".into(),
             service_type: 3,
             owner: String::new(),
+            speaker_kind: String::new(),
+            speaker_media: None,
         });
         let zones = vec![ZoneDescriptor {
             player_id: 3,

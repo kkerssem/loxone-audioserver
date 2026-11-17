@@ -27,6 +27,22 @@ impl FavoriteMetadata {
     }
 }
 
+/// A station the zone's speaker played from its own app, kept with the favorite so the
+/// speaker can play it again (see [`crate::speaker::SpeakerStation`]).
+#[derive(Debug, Clone, PartialEq)]
+pub struct StationSource {
+    /// Speaker API it came from (`naim_stream800`, …).
+    pub kind: String,
+    pub media: Value,
+}
+
+fn attach_station(item: &mut RoomFavItem, station: Option<StationSource>) {
+    if let Some(station) = station {
+        item.speaker_kind = station.kind;
+        item.speaker_media = Some(station.media);
+    }
+}
+
 /// True when normalized audiopaths refer to the same favorite target.
 pub fn paths_match_for_metadata(a: &str, b: &str) -> bool {
     normalize_favorite_audiopath(a) == normalize_favorite_audiopath(b)
@@ -270,6 +286,8 @@ fn build_item(
         service: service.name.to_string(),
         service_type: service.service_type,
         owner: String::new(),
+        speaker_kind: String::new(),
+        speaker_media: None,
     };
     apply_metadata(&mut item, meta, name);
     item
@@ -278,6 +296,9 @@ fn build_item(
 pub fn item_to_wire_json(item: &RoomFavItem) -> Value {
     let mut v = serde_json::to_value(item).expect("room fav item serializes");
     let obj = v.as_object_mut().expect("room fav object");
+    // Ours, for playing it on the speaker; not part of the Loxone row.
+    obj.remove("speaker_kind");
+    obj.remove("speaker_media");
     if matches!(
         item.item_type.as_str(),
         "spotify_playlist" | "spotify_collection"
@@ -317,23 +338,34 @@ pub fn lookup(player_id: usize, favorite_id: usize) -> Option<RoomFavItem> {
         .cloned()
 }
 
+/// Add a favorite. An empty audiopath is refused: what plays then (e.g. Qobuz Connect) cannot
+/// be started from a favorite.
 pub fn add(
     player_id: usize,
     name: &str,
     audiopath: &str,
     meta: FavoriteMetadata,
+    station: Option<StationSource>,
 ) -> Result<RoomFavItem> {
+    if audiopath.trim().is_empty() {
+        anyhow::bail!("no audiopath: this cannot be played from a favorite");
+    }
     ZoneConfig::update(|config| {
         let items = player_favorites_mut(config, player_id);
         let id = next_fav_id(items);
         let slot = items.len() + 1;
-        let item = build_item(name, audiopath, id, slot, &meta);
+        let mut item = build_item(name, audiopath, id, slot, &meta);
+        attach_station(&mut item, station);
         items.push(item.clone());
         Ok(item)
     })
 }
 
-pub fn add_from_player_state(player_id: usize, state: &PlayerState) -> Result<RoomFavItem> {
+pub fn add_from_player_state(
+    player_id: usize,
+    state: &PlayerState,
+    station: Option<StationSource>,
+) -> Result<RoomFavItem> {
     if state.audiopath.is_empty() {
         anyhow::bail!("no audiopath in player state");
     }
@@ -351,7 +383,7 @@ pub fn add_from_player_state(player_id: usize, state: &PlayerState) -> Result<Ro
         let slot = items.len() + 1;
         let service = detect_service(&state.audiopath);
         let item_type = detect_type_from_audiopath(&state.audiopath);
-        let item = RoomFavItem {
+        let mut item = RoomFavItem {
             id,
             slot,
             plus: true,
@@ -369,7 +401,10 @@ pub fn add_from_player_state(player_id: usize, state: &PlayerState) -> Result<Ro
             } else {
                 String::new()
             },
+            speaker_kind: String::new(),
+            speaker_media: None,
         };
+        attach_station(&mut item, station);
         items.push(item.clone());
         Ok(item)
     })
@@ -505,6 +540,48 @@ mod tests {
     }
 
     #[test]
+    fn speaker_station_is_stored_but_not_sent_to_the_app() {
+        with_test_config(
+            ZoneConfig {
+                players: vec![PlayerMapping {
+                    player_id: 3,
+                    name: "Bedroom".into(),
+                    ..Default::default()
+                }],
+            },
+            || {
+                let media = json!({"path": "vtuner:x", "title": "Radio Paradise"});
+                let item = add(
+                    3,
+                    "Radio Paradise",
+                    "speaker:radio:0a1b2c3d",
+                    FavoriteMetadata::default(),
+                    Some(StationSource {
+                        kind: "naim_stream800".into(),
+                        media: media.clone(),
+                    }),
+                )
+                .unwrap();
+                let stored = lookup(3, item.id).unwrap();
+                assert_eq!(stored.speaker_kind, "naim_stream800");
+                assert_eq!(stored.speaker_media, Some(media));
+                assert_eq!(stored.item_type, "tunein", "shown as a station");
+
+                let wire = &get_page(3, 0, 50).items[0];
+                assert_eq!(wire["audiopath"], "speaker:radio:0a1b2c3d");
+                assert!(wire.get("speaker_media").is_none());
+                assert!(wire.get("speaker_kind").is_none());
+
+                assert!(
+                    add(3, "Qobuz Connect", " ", FavoriteMetadata::default(), None).is_err(),
+                    "nothing to replay"
+                );
+                assert_eq!(count(3), 1);
+            },
+        );
+    }
+
+    #[test]
     fn add_list_remove_round_trip() {
         with_test_config(
             ZoneConfig {
@@ -523,6 +600,7 @@ mod tests {
                     "Jazz FM",
                     "tunein:station:s99",
                     FavoriteMetadata::default(),
+                    None,
                 )
                 .unwrap();
                 assert_eq!(item.id, 1);
@@ -551,6 +629,8 @@ mod tests {
             service: "spotify".into(),
             service_type: 3,
             owner: "Timo".into(),
+            speaker_kind: String::new(),
+            speaker_media: None,
         };
         let wire = item_to_wire_json(&item);
         assert_eq!(wire["ownerId"], "Timo");
@@ -560,7 +640,14 @@ mod tests {
     #[test]
     fn persists_across_cache_reload() {
         with_test_config(ZoneConfig::default(), || {
-            add(1, "Track", "qobuz:track:42", FavoriteMetadata::default()).unwrap();
+            add(
+                1,
+                "Track",
+                "qobuz:track:42",
+                FavoriteMetadata::default(),
+                None,
+            )
+            .unwrap();
             let json = serde_json::to_string(&ZoneConfig::get()).unwrap();
             let loaded: ZoneConfig = serde_json::from_str(&json).unwrap();
             ZoneConfig::reset_cache_for_test(loaded);
@@ -578,6 +665,7 @@ mod tests {
                 "Station",
                 "tunein:station:s2611",
                 FavoriteMetadata::default(),
+                None,
             )
             .unwrap();
             assert_ne!(item.id, player_id);
@@ -637,8 +725,15 @@ mod tests {
     #[test]
     fn add_multiple_list_page_and_remove() {
         with_test_config(ZoneConfig::default(), || {
-            add(1, "A", "tunein:station:s1", FavoriteMetadata::default()).unwrap();
-            add(1, "B", "qobuz:track:2", FavoriteMetadata::default()).unwrap();
+            add(
+                1,
+                "A",
+                "tunein:station:s1",
+                FavoriteMetadata::default(),
+                None,
+            )
+            .unwrap();
+            add(1, "B", "qobuz:track:2", FavoriteMetadata::default(), None).unwrap();
             assert_eq!(count(1), 2);
             let page = get_page(1, 0, 1);
             assert_eq!(page.total, 2);
@@ -663,6 +758,7 @@ mod tests {
                     title: "Come Together".into(),
                     ..Default::default()
                 },
+                None,
             )
             .unwrap();
             let serialized = serde_json::to_string(&ZoneConfig::get()).unwrap();

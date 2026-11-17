@@ -35,7 +35,7 @@ impl Default for LoxonePersist {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AudioserverConfigFile {
     pub version: u32,
     pub loxone: LoxonePersist,

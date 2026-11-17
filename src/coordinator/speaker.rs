@@ -1,9 +1,12 @@
 //! Speaker backends in the coordinator: discovery-driven binding, status → registry, transport.
 
+use std::sync::Arc;
+
 use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 
 use crate::{
+    cast::CastPlaybackManager,
     config::ZoneConfig,
     loxone_config::ZoneDescriptor,
     player_state::Playerid,
@@ -13,7 +16,7 @@ use crate::{
         discovery::remember,
         map::status_to_player_state,
         DiscoveredSpeaker, SpeakerCommand, SpeakerEvent, SpeakerManager, SpeakerPower,
-        SpeakerStatus,
+        SpeakerStation, SpeakerStatus,
     },
     zone_enrich::enrich_zone_state,
     zone_registry::{ZoneRegistry, ZoneUpdate},
@@ -21,7 +24,11 @@ use crate::{
     zone_volume,
 };
 
-use super::{apply_zone_update, cast::zone_name_for, preprocess_zone_update};
+use super::{
+    apply_zone_update,
+    cast::{release_cast_zone, zone_name_for},
+    preprocess_zone_update,
+};
 
 /// Persist name-based bindings for unbound zones, then (re)bind the manager to the config.
 /// Returns the zones' speaker targets.
@@ -64,6 +71,83 @@ pub(crate) fn sync_speakers(
     }
     manager.sync(&targets);
     targets
+}
+
+/// The station the zone's speaker plays from its own app, with the speaker's API, when the
+/// speaker can play it again.
+pub(crate) fn current_speaker_station(
+    manager: &SpeakerManager,
+    playerid: Playerid,
+) -> Option<(String, SpeakerStation)> {
+    let kind = manager.kind(playerid.0)?;
+    let station = manager.status_for_commands(playerid.0)?.station?;
+    Some((kind.as_str().to_string(), (*station).clone()))
+}
+
+/// Commands that play a station favorite on the zone's speaker, or why it cannot (pure; see
+/// [`play_speaker_station`]). A favorite only plays on the kind of speaker it was saved from:
+/// another vendor's API does not know the station.
+pub(crate) fn plan_speaker_station(
+    bound_kind: Option<&str>,
+    favorite_kind: &str,
+    last: Option<&SpeakerStatus>,
+    media: serde_json::Value,
+) -> Result<Vec<SpeakerCommand>, &'static str> {
+    let Some(bound_kind) = bound_kind else {
+        return Err("no speaker bound to zone");
+    };
+    if !bound_kind.eq_ignore_ascii_case(favorite_kind) {
+        return Err("saved from another kind of speaker");
+    }
+    let mut commands = Vec::new();
+    if last.is_some_and(|s| s.power != SpeakerPower::On) {
+        commands.push(SpeakerCommand::Power(true));
+    }
+    commands.push(SpeakerCommand::PlayStation(Arc::new(media)));
+    Ok(commands)
+}
+
+/// Play a room favorite saved from the zone's speaker on that speaker. Cast radio playing on
+/// the zone is stopped first, so the speaker's own playback shows again.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn play_speaker_station(
+    playerid: Playerid,
+    kind: &str,
+    media: serde_json::Value,
+    manager: &SpeakerManager,
+    cast_manager: &mut CastPlaybackManager,
+    registry: &mut ZoneRegistry,
+    zones: &[ZoneDescriptor],
+    audioserver_serial: &str,
+    cover_proxy_base: &str,
+    events: &broadcast::Sender<IoEvent>,
+) {
+    let bound = manager.kind(playerid.0).map(|k| k.as_str());
+    let last = manager.status_for_commands(playerid.0);
+    let commands = match plan_speaker_station(bound, kind, last.as_ref(), media) {
+        Ok(commands) => commands,
+        Err(reason) => {
+            warn!(player_id = playerid.0, favorite_kind = %kind, reason, "room favorite not played");
+            return;
+        }
+    };
+    if cast_manager.zone_is_radio(playerid.0) {
+        cast_manager.stop_zone(playerid).await.ok();
+        release_cast_zone(
+            playerid,
+            registry,
+            zones,
+            audioserver_serial,
+            cover_proxy_base,
+            events,
+        );
+    }
+    for command in commands {
+        if let Err(e) = manager.command(playerid.0, command) {
+            warn!(player_id = playerid.0, error = %e, "room favorite not queued");
+            return;
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -238,7 +322,7 @@ pub(crate) fn run_speaker_transport(cmd: &IoCommand, playerid: Playerid, manager
         return;
     }
     for command in commands {
-        if let Err(e) = manager.command(playerid.0, command) {
+        if let Err(e) = manager.command(playerid.0, command.clone()) {
             warn!(player_id = playerid.0, ?command, error = %e, "speaker command not queued");
             return;
         }
@@ -538,6 +622,39 @@ mod tests {
             ),
             vec![SpeakerCommand::SetVolume(51)]
         );
+    }
+
+    #[test]
+    fn station_favorite_plays_only_on_its_kind_of_speaker() {
+        let media = serde_json::json!({"path": "vtuner:x"});
+        let play = SpeakerCommand::PlayStation(Arc::new(media.clone()));
+        assert_eq!(
+            plan_speaker_station(
+                Some("naim_stream800"),
+                "naim_stream800",
+                Some(&on(20)),
+                media.clone()
+            ),
+            Ok(vec![play.clone()])
+        );
+        let standby = SpeakerStatus {
+            power: SpeakerPower::Standby,
+            ..Default::default()
+        };
+        assert_eq!(
+            plan_speaker_station(
+                Some("naim_stream800"),
+                "naim_stream800",
+                Some(&standby),
+                media.clone()
+            ),
+            Ok(vec![SpeakerCommand::Power(true), play])
+        );
+        assert!(
+            plan_speaker_station(Some("kef_stream800"), "naim_stream800", None, media.clone())
+                .is_err()
+        );
+        assert!(plan_speaker_station(None, "naim_stream800", None, media).is_err());
     }
 
     #[test]

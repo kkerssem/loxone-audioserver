@@ -92,7 +92,31 @@ pub struct SpeakerStatus {
     /// Lets the Loxone App reload a cover whose URL did not change (see
     /// [`crate::zone_enrich::apply_cover_proxy`]).
     pub play_session: String,
+    /// Live radio started from the speaker's own app that the speaker can play again from a
+    /// description (a room favorite); `None` for anything else.
+    pub station: Option<Arc<SpeakerStation>>,
 }
+
+/// A radio station as the speaker describes it, enough to play it again on that speaker.
+#[derive(Clone, PartialEq)]
+pub struct SpeakerStation {
+    /// Stable audiopath for the Loxone App (`speaker:radio:<crc32 of the speaker's path>`).
+    pub audiopath: String,
+    /// The speaker's own description (StreamUnlimited `mediaRoles`), sent back to play it.
+    pub media: serde_json::Value,
+}
+
+impl std::fmt::Debug for SpeakerStation {
+    // The description holds stream URLs and is long: only the audiopath goes into logs.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SpeakerStation")
+            .field(&self.audiopath)
+            .finish()
+    }
+}
+
+/// Audiopath prefix of stations described by the speaker (see [`SpeakerStation`]).
+pub const STATION_AUDIOPATH_PREFIX: &str = "speaker:radio:";
 
 impl SpeakerStatus {
     pub fn unreachable() -> Self {
@@ -108,7 +132,7 @@ impl SpeakerStatus {
 }
 
 /// A command Loxone sends to a speaker.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SpeakerCommand {
     Play,
     Pause,
@@ -116,6 +140,8 @@ pub enum SpeakerCommand {
     Power(bool),
     /// Jump to this many seconds into the current track.
     Seek(u32),
+    /// Play a station the speaker described earlier (a room favorite's `mediaRoles`).
+    PlayStation(Arc<serde_json::Value>),
 }
 
 /// Local control API of one speaker.
@@ -131,6 +157,13 @@ pub trait SpeakerBackend: Send + Sync {
     async fn seek(&self, seconds: u32) -> Result<()> {
         let _ = seconds;
         anyhow::bail!("seek not supported by this speaker")
+    }
+
+    /// Play a station from the description in [`SpeakerStation::media`]; speakers that cannot
+    /// refuse it.
+    async fn play_station(&self, media: &serde_json::Value) -> Result<()> {
+        let _ = media;
+        anyhow::bail!("this speaker cannot play a station description")
     }
 
     /// How long a command may take; `None` uses the manager's poll timeout.
@@ -160,6 +193,7 @@ pub trait SpeakerBackend: Send + Sync {
             SpeakerCommand::SetVolume(level) => self.set_volume(level.min(100)).await,
             SpeakerCommand::Power(on) => self.power(on).await,
             SpeakerCommand::Seek(seconds) => self.seek(seconds).await,
+            SpeakerCommand::PlayStation(media) => self.play_station(&media).await,
         }
     }
 }
@@ -235,7 +269,7 @@ pub(crate) mod fake {
             if *self.fail_commands.lock().unwrap() {
                 anyhow::bail!("fake speaker refused {command:?}");
             }
-            self.commands.lock().unwrap().push(command);
+            self.commands.lock().unwrap().push(command.clone());
             if *self.inert.lock().unwrap() {
                 return Ok(());
             }
@@ -250,6 +284,10 @@ pub(crate) mod fake {
                 SpeakerCommand::Pause => status.mode = Some(Mode::Pause),
                 SpeakerCommand::SetVolume(level) => status.volume = level,
                 SpeakerCommand::Seek(seconds) => status.position_s = i64::from(seconds),
+                SpeakerCommand::PlayStation(_) => {
+                    status.power = SpeakerPower::On;
+                    status.mode = Some(Mode::Play);
+                }
                 SpeakerCommand::Power(false) => status.power = SpeakerPower::Standby,
                 SpeakerCommand::Power(true) => {
                     let delay = *self.wake_polls.lock().unwrap();
@@ -292,6 +330,9 @@ pub(crate) mod fake {
         }
         async fn seek(&self, seconds: u32) -> Result<()> {
             self.record(SpeakerCommand::Seek(seconds))
+        }
+        async fn play_station(&self, media: &serde_json::Value) -> Result<()> {
+            self.record(SpeakerCommand::PlayStation(Arc::new(media.clone())))
         }
         async fn interrupt(&self) -> Result<bool> {
             self.check()?;

@@ -247,6 +247,19 @@ pub enum IoCommand {
     // GetRadios(oneshot::Sender<RadioList>),
     Pause(Playerid),
     Play(Playerid, Option<PlayOpts>),
+    /// The station the zone's speaker plays from its own app, with that speaker's API, if
+    /// the speaker can play it again (for saving a room favorite).
+    SpeakerStation {
+        player_id: Playerid,
+        reply: oneshot::Sender<Option<(String, crate::speaker::SpeakerStation)>>,
+    },
+    /// Play a room favorite that the zone's speaker described: `kind` is the speaker API it
+    /// was saved from, `media` the speaker's description.
+    PlaySpeakerStation {
+        player_id: Playerid,
+        kind: String,
+        media: serde_json::Value,
+    },
     Players(PlayerNames),
     /// Seek target in seconds (KEF/Naim speakers via `seekTime`; Cast radio is live).
     Position(Playerid, i32),
