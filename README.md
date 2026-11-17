@@ -56,7 +56,7 @@ Edit `audioserver.players[]` in `audioserver-config.json`:
 | `speaker_host` | Optional manual IP/host for the speaker (overrides discovery) |
 | `speaker_kind` | Needed only with `speaker_host` when mDNS cannot see the speaker: `kef_stream800`, `naim_stream800`, `kef_legacy` or `beo` (Bang & Olufsen BeoLink, e.g. Beoplay M3; its API is on port 8080 of that host) |
 
-**Speakers** are found on the LAN via mDNS and logged at startup as `speaker discovered` with their `speaker_id`. A zone whose Loxone name equals a speaker's name (for example a zone called "Mu-so Qb") is bound automatically and the `speaker_id` is saved; otherwise copy the id from the log into that zone's row. Bang & Olufsen speakers are found via `_beocore._tcp`; their `speaker_id` is the B&O id (`<type>.<item>.<serial>@products.bang-olufsen.com`).
+**Speakers** are found on the LAN via mDNS and logged at startup as `speaker discovered` with their `speaker_id`. A zone whose Loxone name equals a speaker's name (for example a zone called "Mu-so Qb") is bound automatically and the `speaker_id` is saved; otherwise copy the id from the log into that zone's row. A discovered speaker that no zone points to is logged once as a warning, `speaker not bound to any zone`: until it is bound, the Loxone App does not show what plays from the speaker's own app. Bang & Olufsen speakers are found via `_beocore._tcp`; their `speaker_id` is the B&O id (`<type>.<item>.<serial>@products.bang-olufsen.com`).
 
 Find a Cast device id on macOS:
 
