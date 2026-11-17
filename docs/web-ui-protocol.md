@@ -712,7 +712,7 @@ Example GET (flat):
 }
 ```
 
-Golden fixture: [`tests/fixtures/geteq_zone2_flat.json`](../tests/fixtures/geteq_zone2_flat.json). Implementation: [`src/zone_equalizer.rs`](../src/zone_equalizer.rs).
+Implementation and tests: [`src/zone_equalizer.rs`](../src/zone_equalizer.rs).
 
 **Not** `geteq_result: []` (unknown-command stub). Band names match `MediaEnum.Equalizer.CHANNELS` in `scripts6.js`.
 

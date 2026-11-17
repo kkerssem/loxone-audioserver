@@ -1135,18 +1135,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires audioserver private.pem paired with Miniserver session_keys ciphertext"]
-    fn decrypt_session_keys_fixture_with_paired_key() {
-        let fixture = load_fixture();
-        let jwt = fixture["init_jwt"].as_str().unwrap();
-        let req = parse_jwt_payload_unverified(jwt).unwrap();
-        let (private_key, _) = load_keys().unwrap();
-        let keys =
-            decrypt_session_keys(&req.session_keys, &private_key, req.encryption_type).unwrap();
-        assert!(!keys.raw.is_empty());
-    }
-
-    #[test]
     fn summarize_hello_cert_chain_from_fixture() {
         let fixture = load_fixture();
         let jwt = fixture["init_jwt"].as_str().unwrap();

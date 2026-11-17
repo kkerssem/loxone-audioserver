@@ -467,6 +467,15 @@ mod tests {
     }
 
     #[test]
+    fn loudness_response_matches_fixture() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/loudness_get_off.json")).unwrap();
+        let wire: serde_json::Value =
+            serde_json::from_str(&loudness_result("audio/2/loudness", false).unwrap()).unwrap();
+        assert_eq!(wire, fixture);
+    }
+
+    #[test]
     fn matches_loudness_routes() {
         assert!(is_zone_transport("audio/2/loudness"));
         assert!(is_zone_transport("audio/2/loudness/1"));
