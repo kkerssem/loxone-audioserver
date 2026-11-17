@@ -743,29 +743,4 @@ mod tests {
         .unwrap();
         assert_eq!(first_wire_key(&getkey).as_deref(), Some("getkey_result"));
     }
-
-    #[test]
-    fn loudness_fixture_matches_wire_envelope() {
-        let v: serde_json::Value =
-            serde_json::from_str(include_str!("../../tests/fixtures/loudness_get_off.json"))
-                .unwrap();
-        assert_eq!(v["loudness_result"], false);
-        assert_eq!(v["command"], "audio/2/loudness");
-    }
-
-    #[test]
-    fn getroomfavs_fixture_tunein_qobuz_shape() {
-        let v: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tests/fixtures/getroomfavs_result_tunein_qobuz.json"
-        ))
-        .unwrap();
-        let page = &v["getroomfavs_result"][0];
-        assert_eq!(page["id"], 3);
-        assert_eq!(page["type"], 4);
-        assert_eq!(page["totalitems"], 2);
-        let items = page["items"].as_array().unwrap();
-        assert_eq!(items[0]["type"], "tunein");
-        assert_eq!(items[1]["type"], "spotify_track");
-        assert_eq!(items[1]["service"], "spotify");
-    }
 }

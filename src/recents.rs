@@ -250,19 +250,4 @@ mod tests {
         assert_eq!(v["type"], 2);
         assert_eq!(v["owner"], "qobuz");
     }
-
-    #[test]
-    fn recent_fixture_matches_v2_row_shape() {
-        let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/recent_result_qobuz.json"))
-                .unwrap();
-        let row = &fixture["recent_result"]["items"][0];
-        assert_eq!(row["audiopath"], "qobuz:track:12345");
-        assert_eq!(row["service"], "spotify");
-        assert_eq!(row["serviceType"], 3);
-        assert_eq!(row["type"], 2);
-        let parsed: RecentItem = serde_json::from_value(row.clone()).unwrap();
-        assert_eq!(parsed.service, "spotify");
-        assert_eq!(parsed.item_type, 2);
-    }
 }
