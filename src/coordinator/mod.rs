@@ -197,6 +197,29 @@ pub async fn run(
                 .await;
                 let _ = sender.send(result);
             }
+            IoCommand::SpeakerStation { player_id, reply } => {
+                let _ = reply.send(speaker::current_speaker_station(&speaker_manager, player_id));
+            }
+            IoCommand::PlaySpeakerStation {
+                player_id,
+                kind,
+                media,
+            } => {
+                voice.note_transport(player_id);
+                speaker::play_speaker_station(
+                    player_id,
+                    &kind,
+                    media,
+                    &speaker_manager,
+                    &mut cast_manager,
+                    &mut registry,
+                    &zones,
+                    &mac_id,
+                    &cover_proxy_base,
+                    &events,
+                )
+                .await;
+            }
             IoCommand::PlayVoiceMessage { file, zones: targets } => {
                 let released = voice
                     .start(&file, &targets, &mut cast_manager, &speaker_manager)

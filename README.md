@@ -89,6 +89,8 @@ Open the Web/App UI on the same LAN. Media commands may arrive on **`ws://<audio
 
 `audioserver-config.json` has two sections: `loxone` (the Miniserver `setconfig` snapshot and its CRC) and `audioserver` (`players[]` with zone mappings, volume presets and room favorites).
 
+**Room favorites** are kept per zone in `audioserver-config.json`. A favorite of a TuneIn or custom station plays via Cast. A radio station started from a KEF or Naim speaker's own app can be a favorite too: the audioserver keeps the speaker's own description of the station (`speaker_kind`, `speaker_media`) and plays it on that zone's speaker again. Such a favorite only plays on the same kind of speaker, so copying it to a room with another speaker brand does not work. Qobuz Connect, or Qobuz started from the Naim app, cannot be a favorite: the speaker does not say what plays, and adding it is refused.
+
 ## Debugging
 
 ```bash

@@ -223,15 +223,24 @@ impl SpeakerManager {
             .zones
             .get(&player_id)
             .with_context(|| format!("no speaker bound to zone {player_id}"))?;
+        let volume = match command {
+            SpeakerCommand::SetVolume(level) => Some(level),
+            _ => None,
+        };
         zone.commands
             .try_send(command)
             .map_err(|e| anyhow!("speaker command queue for zone {player_id}: {e}"))?;
-        if let SpeakerCommand::SetVolume(level) = command {
+        if let Some(level) = volume {
             if let Ok(mut commanded) = zone.shared.commanded_volume.lock() {
                 *commanded = Some((level, Instant::now()));
             }
         }
         Ok(())
+    }
+
+    /// Speaker API of the zone's bound speaker.
+    pub fn kind(&self, player_id: usize) -> Option<SpeakerKind> {
+        self.zones.get(&player_id).map(|z| z.target.kind)
     }
 
     /// Forget the zone's last reported status and poll now, so its current status is
@@ -330,7 +339,7 @@ impl ZoneTask {
             .map_or(self.timing.request_timeout, |t| {
                 t.max(self.timing.request_timeout)
             });
-        let result = tokio::time::timeout(timeout, self.backend.run(command))
+        let result = tokio::time::timeout(timeout, self.backend.run(command.clone()))
             .await
             .map_err(|_| anyhow!("timed out"))
             .and_then(|r| r);

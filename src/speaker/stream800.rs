@@ -29,7 +29,9 @@ use tracing::{debug, warn};
 
 use crate::player_state::Mode;
 
-use super::{SpeakerBackend, SpeakerPower, SpeakerStatus};
+use super::{
+    SpeakerBackend, SpeakerPower, SpeakerStation, SpeakerStatus, STATION_AUDIOPATH_PREFIX,
+};
 
 const PATH_PLAYER_DATA: &str = "player:player/data";
 const PATH_PLAY_TIME: &str = "player:player/data/playTime";
@@ -364,15 +366,22 @@ impl Stream800 {
             return Ok(());
         };
         // On error the stream stays kept, so another play can retry.
+        self.replay_stream(media).await
+    }
+
+    /// Play a live stream from its `mediaRoles` and keep it, so a pause (which stops live
+    /// radio) and play restart it.
+    async fn replay_stream(&self, media: Value) -> Result<()> {
         self.set_data(
             PATH_PLAYER_CONTROL,
             "activate",
-            json!({ "control": "play", "mediaRoles": media }),
+            json!({ "control": "play", "mediaRoles": media.clone() }),
         )
         .await?;
-        if let Some(stream) = self.live_stream.lock().expect("stream lock").as_mut() {
-            stream.session = None;
-        }
+        *self.live_stream.lock().expect("stream lock") = Some(LiveStream {
+            media,
+            session: None,
+        });
         // The replayed stream is live radio: a pause right after must stop it, even before the
         // speaker reports it as live.
         self.remember("playing", Some(false));
@@ -626,7 +635,22 @@ pub fn parse_status(
         position_s: position_ms / 1000,
         live: is_live(player_data),
         play_session: play_session(player_data),
+        station: station(player_data),
     }
+}
+
+/// A live stream from the speaker's own app that its `mediaRoles` can start again (see
+/// [`replay_media`]), keyed by its `path` so the same station keeps the same audiopath.
+fn station(player_data: &Value) -> Option<std::sync::Arc<SpeakerStation>> {
+    let media = replay_media(player_data)?;
+    let path = media.get("path").and_then(Value::as_str)?;
+    Some(std::sync::Arc::new(SpeakerStation {
+        audiopath: format!(
+            "{STATION_AUDIOPATH_PREFIX}{}",
+            crate::config::crc32_hex(path.as_bytes())
+        ),
+        media,
+    }))
 }
 
 /// Track icon, if it is an http(s) URL.
@@ -734,6 +758,10 @@ impl SpeakerBackend for Stream800 {
 
     /// Set the level and, for a non-zero level on a muted speaker, unmute it: Loxone shows a
     /// muted speaker as volume 0, so raising the volume must make it audible.
+    async fn play_station(&self, media: &Value) -> Result<()> {
+        self.replay_stream(media.clone()).await
+    }
+
     async fn seek(&self, seconds: u32) -> Result<()> {
         self.set_data(
             PATH_PLAYER_CONTROL,
@@ -920,6 +948,51 @@ mod tests {
             "https://media.focal-naim.com/app/images/stations/2822.png"
         );
         assert_eq!(muso.duration_s, 0, "duration -1 means unknown");
+    }
+
+    #[test]
+    fn native_app_radio_is_a_replayable_station() {
+        let status = |data: &Value| {
+            parse_status(
+                SpeakerPower::On,
+                data,
+                &json!({"i32_": 23}),
+                None,
+                None,
+                None,
+            )
+        };
+        // The capture has its stream path stripped; put a short one back.
+        let mut vtuner = first(fixture("muso_vtuner"));
+        vtuner["mediaRoles"]["path"] = json!("vtuner:c3RhdGlvbg==");
+        let station = status(&vtuner).station.expect("vtuner station");
+        assert!(station.audiopath.starts_with(STATION_AUDIOPATH_PREFIX));
+        assert_eq!(station.media, vtuner["mediaRoles"]);
+        assert_eq!(
+            status(&vtuner).station.unwrap().audiopath,
+            station.audiopath,
+            "same station, same audiopath"
+        );
+        let mut other = vtuner.clone();
+        other["mediaRoles"]["path"] = json!("vtuner:b3RoZXI=");
+        assert_ne!(status(&other).station.unwrap().audiopath, station.audiopath);
+
+        assert!(
+            status(&first(fixture("muso_vtuner"))).station.is_none(),
+            "no path"
+        );
+        assert!(
+            status(&first(fixture("muso_radio"))).station.is_none(),
+            "cast radio"
+        );
+        assert!(
+            status(&first(fixture("muso_qobuz"))).station.is_none(),
+            "qobuz connect"
+        );
+        assert!(
+            status(&first(fixture("ls60_qobuz"))).station.is_none(),
+            "qobuz connect"
+        );
     }
 
     #[test]
