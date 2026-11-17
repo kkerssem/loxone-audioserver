@@ -248,8 +248,8 @@ pub enum IoCommand {
     Pause(Playerid),
     Play(Playerid, Option<PlayOpts>),
     Players(PlayerNames),
-    /// Seek target in seconds; no backend seeks yet (the KEF/Naim API can, via `seekTime`).
-    Position(Playerid, #[allow(dead_code)] i32),
+    /// Seek target in seconds (KEF/Naim speakers via `seekTime`; Cast radio is live).
+    Position(Playerid, i32),
     QueueMinus(Playerid),
     QueuePlus(Playerid),
     /// Global search category drill-down: `audio/cfg/search/{service}/{user}/{kind}/{query}/{start}/{max}`.

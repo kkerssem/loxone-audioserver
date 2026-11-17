@@ -344,9 +344,14 @@ impl ZoneTask {
             Err(e) => {
                 warn!(player_id = self.player_id, ?command, error = %e, "speaker command failed")
             }
-            // A volume change needs no settle polling (a slider drag would otherwise keep the
-            // speaker busy); one re-poll shows the new level.
-            Ok(()) if matches!(command, SpeakerCommand::SetVolume(_)) => {
+            // A volume change or seek needs no settle polling (a slider drag would otherwise
+            // keep the speaker busy); one re-poll shows the new level or position.
+            Ok(())
+                if matches!(
+                    command,
+                    SpeakerCommand::SetVolume(_) | SpeakerCommand::Seek(_)
+                ) =>
+            {
                 self.poll().await;
             }
             Ok(()) => {
@@ -489,6 +494,23 @@ mod tests {
                 return status;
             }
         }
+    }
+
+    #[tokio::test]
+    async fn a_seek_reports_the_new_position() {
+        let fake = FakeSpeaker::with_status(SpeakerStatus {
+            mode: Some(Mode::Play),
+            duration_s: 240,
+            position_s: 10,
+            ..Default::default()
+        });
+        let (mut manager, mut rx) = manager_with(&fake, fast());
+        manager.sync(&[target(3, "naim")]);
+        next_status(&mut rx).await;
+
+        manager.command(3, SpeakerCommand::Seek(95)).unwrap();
+        status_matching(&mut rx, |s| s.position_s == 95).await;
+        assert_eq!(fake.commands(), vec![SpeakerCommand::Seek(95)]);
     }
 
     #[tokio::test]

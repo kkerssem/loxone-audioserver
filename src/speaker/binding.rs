@@ -126,6 +126,14 @@ pub fn resolve_targets(
     (targets, problems)
 }
 
+/// Whether one of `targets` controls `speaker`: by its discovered id, or by a manual
+/// `speaker_host` that points at the same address.
+pub fn is_bound(speaker: &DiscoveredSpeaker, targets: &[ZoneSpeakerTarget]) -> bool {
+    targets.iter().any(|t| {
+        t.speaker_id.eq_ignore_ascii_case(&speaker.id) || t.host.eq_ignore_ascii_case(&speaker.host)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,6 +145,21 @@ mod tests {
             name: name.into(),
             host: format!("host-{id}"),
         }
+    }
+
+    #[test]
+    fn is_bound_matches_id_or_manual_host() {
+        let naim = speaker("Naim-1", "Mu-so Qb", SpeakerKind::NaimStream800);
+        let target = |speaker_id: &str, host: &str| ZoneSpeakerTarget {
+            player_id: 3,
+            speaker_id: speaker_id.into(),
+            kind: SpeakerKind::NaimStream800,
+            host: host.into(),
+        };
+        assert!(!is_bound(&naim, &[]));
+        assert!(is_bound(&naim, &[target("naim-1", "10.0.0.7")]));
+        assert!(is_bound(&naim, &[target("host-Naim-1", "host-Naim-1")]));
+        assert!(!is_bound(&naim, &[target("ls60-1", "host-ls60-1")]));
     }
 
     fn zone(player_id: usize, name: &str) -> PlayerMapping {

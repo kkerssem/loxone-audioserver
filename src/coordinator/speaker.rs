@@ -9,7 +9,7 @@ use crate::{
     player_state::Playerid,
     remote::{IoCommand, IoEvent},
     speaker::{
-        binding::{auto_bind_by_name, resolve_targets},
+        binding::{auto_bind_by_name, is_bound, resolve_targets, ZoneSpeakerTarget},
         discovery::remember,
         map::status_to_player_state,
         DiscoveredSpeaker, SpeakerCommand, SpeakerEvent, SpeakerManager, SpeakerPower,
@@ -24,7 +24,11 @@ use crate::{
 use super::{apply_zone_update, cast::zone_name_for, preprocess_zone_update};
 
 /// Persist name-based bindings for unbound zones, then (re)bind the manager to the config.
-pub(crate) fn sync_speakers(manager: &mut SpeakerManager, discovered: &[DiscoveredSpeaker]) {
+/// Returns the zones' speaker targets.
+pub(crate) fn sync_speakers(
+    manager: &mut SpeakerManager,
+    discovered: &[DiscoveredSpeaker],
+) -> Vec<ZoneSpeakerTarget> {
     let mut config = ZoneConfig::get();
     let new_bindings = auto_bind_by_name(&config, discovered);
     if !new_bindings.is_empty() {
@@ -59,6 +63,7 @@ pub(crate) fn sync_speakers(manager: &mut SpeakerManager, discovered: &[Discover
         );
     }
     manager.sync(&targets);
+    targets
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -76,8 +81,26 @@ pub(crate) fn handle_speaker_event(
         SpeakerEvent::Discovered(found) => {
             // Speakers missing from one browse stay known; the zone's poll loop reports a
             // speaker that is really gone as unreachable.
+            let new_ids: Vec<String> = found
+                .iter()
+                .filter(|f| !discovered.iter().any(|k| k.id == f.id))
+                .map(|f| f.id.clone())
+                .collect();
             if remember(discovered, found) {
-                sync_speakers(manager, discovered);
+                let targets = sync_speakers(manager, discovered);
+                // Once per speaker: a zone without a `speaker_id` shows nothing played from
+                // the speaker's own app, which is easy to miss from the logs alone.
+                for speaker in discovered
+                    .iter()
+                    .filter(|s| new_ids.contains(&s.id) && !is_bound(s, &targets))
+                {
+                    warn!(
+                        speaker_id = %speaker.id,
+                        name = %speaker.name,
+                        host = %speaker.host,
+                        "speaker not bound to any zone; set speaker_id on its zone in audioserver-config.json"
+                    );
+                }
             }
         }
         SpeakerEvent::Status { player_id, status } => publish_speaker_status(
@@ -166,6 +189,20 @@ pub(crate) fn plan_speaker_commands(
             };
             vec![SpeakerCommand::SetVolume(level)]
         }
+        // Only within a track that is playing or paused; live radio has no position.
+        IoCommand::Position(_, seconds) => match last {
+            Some(s)
+                if s.power == SpeakerPower::On
+                    && s.mode.is_some()
+                    && !s.live
+                    && s.duration_s > 0 =>
+            {
+                vec![SpeakerCommand::Seek(
+                    (*seconds).clamp(0, s.duration_s as i32) as u32,
+                )]
+            }
+            _ => Vec::new(),
+        },
         _ => Vec::new(),
     }
 }
@@ -506,6 +543,32 @@ mod tests {
     #[test]
     fn unsupported_commands_plan_nothing() {
         assert!(plan(IoCommand::QueuePlus(Playerid(1)), Some(on(1))).is_empty());
-        assert!(plan(IoCommand::Position(Playerid(1), 30), Some(on(1))).is_empty());
+    }
+
+    #[test]
+    fn position_seeks_within_a_track_only() {
+        let track = SpeakerStatus {
+            duration_s: 240,
+            ..on(30)
+        };
+        let seek = |secs, last: &SpeakerStatus| {
+            plan(IoCommand::Position(Playerid(1), secs), Some(last.clone()))
+        };
+        assert_eq!(seek(95, &track), vec![SpeakerCommand::Seek(95)]);
+        assert_eq!(seek(-3, &track), vec![SpeakerCommand::Seek(0)]);
+        assert_eq!(seek(999, &track), vec![SpeakerCommand::Seek(240)]);
+
+        let radio = SpeakerStatus {
+            live: true,
+            ..track.clone()
+        };
+        assert!(seek(95, &radio).is_empty(), "live radio");
+        assert!(seek(95, &on(30)).is_empty(), "no duration");
+        let stopped = SpeakerStatus {
+            mode: None,
+            ..track.clone()
+        };
+        assert!(seek(95, &stopped).is_empty(), "nothing playing");
+        assert!(plan(IoCommand::Position(Playerid(1), 95), None).is_empty());
     }
 }

@@ -114,6 +114,8 @@ pub enum SpeakerCommand {
     Pause,
     SetVolume(u8),
     Power(bool),
+    /// Jump to this many seconds into the current track.
+    Seek(u32),
 }
 
 /// Local control API of one speaker.
@@ -125,6 +127,11 @@ pub trait SpeakerBackend: Send + Sync {
     /// `level` is 0–100.
     async fn set_volume(&self, level: u8) -> Result<()>;
     async fn power(&self, on: bool) -> Result<()>;
+    /// Jump to `seconds` into the current track; speakers without seek refuse it.
+    async fn seek(&self, seconds: u32) -> Result<()> {
+        let _ = seconds;
+        anyhow::bail!("seek not supported by this speaker")
+    }
 
     /// How long a command may take; `None` uses the manager's poll timeout.
     fn command_timeout(&self) -> Option<std::time::Duration> {
@@ -152,6 +159,7 @@ pub trait SpeakerBackend: Send + Sync {
             SpeakerCommand::Pause => self.pause().await,
             SpeakerCommand::SetVolume(level) => self.set_volume(level.min(100)).await,
             SpeakerCommand::Power(on) => self.power(on).await,
+            SpeakerCommand::Seek(seconds) => self.seek(seconds).await,
         }
     }
 }
@@ -241,6 +249,7 @@ pub(crate) mod fake {
                 }
                 SpeakerCommand::Pause => status.mode = Some(Mode::Pause),
                 SpeakerCommand::SetVolume(level) => status.volume = level,
+                SpeakerCommand::Seek(seconds) => status.position_s = i64::from(seconds),
                 SpeakerCommand::Power(false) => status.power = SpeakerPower::Standby,
                 SpeakerCommand::Power(true) => {
                     let delay = *self.wake_polls.lock().unwrap();
@@ -280,6 +289,9 @@ pub(crate) mod fake {
         }
         async fn power(&self, on: bool) -> Result<()> {
             self.record(SpeakerCommand::Power(on))
+        }
+        async fn seek(&self, seconds: u32) -> Result<()> {
+            self.record(SpeakerCommand::Seek(seconds))
         }
         async fn interrupt(&self) -> Result<bool> {
             self.check()?;
