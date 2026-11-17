@@ -734,6 +734,15 @@ impl SpeakerBackend for Stream800 {
 
     /// Set the level and, for a non-zero level on a muted speaker, unmute it: Loxone shows a
     /// muted speaker as volume 0, so raising the volume must make it audible.
+    async fn seek(&self, seconds: u32) -> Result<()> {
+        self.set_data(
+            PATH_PLAYER_CONTROL,
+            "activate",
+            json!({ "control": "seekTime", "time": u64::from(seconds) * 1000 }),
+        )
+        .await
+    }
+
     async fn set_volume(&self, level: u8) -> Result<()> {
         let level = level.min(100);
         self.set_data(

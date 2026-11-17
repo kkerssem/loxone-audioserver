@@ -166,6 +166,20 @@ pub(crate) fn plan_speaker_commands(
             };
             vec![SpeakerCommand::SetVolume(level)]
         }
+        // Only within a track that is playing or paused; live radio has no position.
+        IoCommand::Position(_, seconds) => match last {
+            Some(s)
+                if s.power == SpeakerPower::On
+                    && s.mode.is_some()
+                    && !s.live
+                    && s.duration_s > 0 =>
+            {
+                vec![SpeakerCommand::Seek(
+                    (*seconds).clamp(0, s.duration_s as i32) as u32,
+                )]
+            }
+            _ => Vec::new(),
+        },
         _ => Vec::new(),
     }
 }
@@ -506,6 +520,32 @@ mod tests {
     #[test]
     fn unsupported_commands_plan_nothing() {
         assert!(plan(IoCommand::QueuePlus(Playerid(1)), Some(on(1))).is_empty());
-        assert!(plan(IoCommand::Position(Playerid(1), 30), Some(on(1))).is_empty());
+    }
+
+    #[test]
+    fn position_seeks_within_a_track_only() {
+        let track = SpeakerStatus {
+            duration_s: 240,
+            ..on(30)
+        };
+        let seek = |secs, last: &SpeakerStatus| {
+            plan(IoCommand::Position(Playerid(1), secs), Some(last.clone()))
+        };
+        assert_eq!(seek(95, &track), vec![SpeakerCommand::Seek(95)]);
+        assert_eq!(seek(-3, &track), vec![SpeakerCommand::Seek(0)]);
+        assert_eq!(seek(999, &track), vec![SpeakerCommand::Seek(240)]);
+
+        let radio = SpeakerStatus {
+            live: true,
+            ..track.clone()
+        };
+        assert!(seek(95, &radio).is_empty(), "live radio");
+        assert!(seek(95, &on(30)).is_empty(), "no duration");
+        let stopped = SpeakerStatus {
+            mode: None,
+            ..track.clone()
+        };
+        assert!(seek(95, &stopped).is_empty(), "nothing playing");
+        assert!(plan(IoCommand::Position(Playerid(1), 95), None).is_empty());
     }
 }
