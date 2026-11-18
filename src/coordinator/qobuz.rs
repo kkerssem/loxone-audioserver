@@ -11,7 +11,9 @@ use crate::{
     loxone_config::ZoneDescriptor,
     player_state::Playerid,
     qobuz::{self, Folder},
-    remote::{BrowseResult, IoEvent},
+    remote::{
+        BrowseResult, GlobalSearchCategory, GlobalSearchResultBody, GlobalSearchTopResults, IoEvent,
+    },
     speaker::{
         SpeakerBackend, SpeakerCommand, SpeakerKind, SpeakerManager, SpeakerPower, SpeakerStatus,
     },
@@ -65,7 +67,7 @@ pub(crate) async fn browse_folder(
             return empty(folder_id, name, start);
         }
     };
-    qobuz::remember_tracks(&page.rows);
+    qobuz::remember_rows(&page.rows);
     let cover = |url: &str| proxied_cover_url(cover_proxy_base, url, "x");
     let items = page
         .rows
@@ -77,6 +79,144 @@ pub(crate) async fn browse_folder(
         total_items: page.total,
         items,
         ..empty(folder_id, name, start)
+    }
+}
+
+/// One page of a search category from the speaker, as browse items (empty on failure).
+async fn search_page(
+    backend: &dyn SpeakerBackend,
+    kind: &str,
+    query: &str,
+    start: usize,
+    count: usize,
+    cover_proxy_base: &str,
+) -> (usize, Vec<crate::remote::BrowseResultItem>) {
+    let Some(path) = qobuz::search_path(kind, query) else {
+        return (0, vec![]);
+    };
+    match backend.browse(&path, start, count).await {
+        Ok(page) => {
+            qobuz::remember_rows(&page.rows);
+            let cover = |url: &str| proxied_cover_url(cover_proxy_base, url, "x");
+            let items = page
+                .rows
+                .iter()
+                .enumerate()
+                .map(|(i, row)| qobuz::browse_item(row, start + i + 1, &cover))
+                .collect();
+            (page.total, items)
+        }
+        Err(e) => {
+            warn!(kind, error = %e, "qobuz search failed");
+            (0, vec![])
+        }
+    }
+}
+
+/// The App's global search: a few hits per category, each with a link to its full list.
+pub(crate) async fn global_search(
+    backend: Option<Arc<dyn SpeakerBackend>>,
+    provider_spec: &str,
+    query: &str,
+    cover_proxy_base: &str,
+) -> GlobalSearchResultBody {
+    let mut body = GlobalSearchResultBody::empty();
+    let Some(backend) = backend else {
+        warn!("qobuz search: no speaker logged into qobuz is bound");
+        return body;
+    };
+    let limits = qobuz::search_limits(provider_spec);
+    // The categories are separate speaker requests: ask them at once.
+    let mut tasks = tokio::task::JoinSet::new();
+    for (index, (kind, n)) in limits.iter().copied().enumerate() {
+        let backend = Arc::clone(&backend);
+        let (query, cover_proxy_base) = (query.to_string(), cover_proxy_base.to_string());
+        tasks.spawn(async move {
+            let page = search_page(backend.as_ref(), kind, &query, 0, n, &cover_proxy_base).await;
+            (index, page)
+        });
+    }
+    let mut pages = vec![(0, vec![]); limits.len()];
+    while let Some(done) = tasks.join_next().await {
+        if let Ok((index, page)) = done {
+            pages[index] = page;
+        }
+    }
+    let inner = body.result.as_mut().expect("empty search keeps its result");
+    let empty_category = |caption: &str, kind: &str| GlobalSearchCategory {
+        caption: caption.to_string(),
+        count: 0,
+        items: vec![],
+        link: qobuz::search_link(kind, query),
+        total_items: 0,
+    };
+    let mut top = GlobalSearchTopResults {
+        caption: "Top results".to_string(),
+        count: 0,
+        tracks: vec![],
+        albums: vec![],
+        artists: vec![],
+        playlists: vec![],
+    };
+    for ((kind, _), (total, items)) in limits.iter().zip(pages) {
+        let items: Vec<_> = items.into_iter().map(qobuz::search_hit).collect();
+        if let Some(first) = items.first() {
+            top.count += 1;
+            match *kind {
+                "track" => top.tracks.push(first.clone()),
+                "album" => top.albums.push(first.clone()),
+                "artist" => top.artists.push(first.clone()),
+                _ => top.playlists.push(first.clone()),
+            }
+        }
+        let category = GlobalSearchCategory {
+            caption: qobuz::search_caption(kind).to_string(),
+            count: items.len(),
+            items,
+            link: qobuz::search_link(kind, query),
+            total_items: total,
+        };
+        match *kind {
+            "track" => inner.tracks = Some(category),
+            "album" => inner.albums = Some(category),
+            "artist" => inner.artists = Some(category),
+            _ => inner.playlists = Some(category),
+        }
+    }
+    // Present even though Qobuz has none: the App expects every category it may show.
+    inner.shows = Some(empty_category("Podcasts", "show"));
+    inner.episodes = Some(empty_category("Episodes", "episode"));
+    inner.topresults = Some(top);
+    inner.user = qobuz::SERVICE_USER.to_string();
+    inner.service = Some(qobuz::search_hit_service());
+    body
+}
+
+/// A search category's full list ("show more"), paged.
+pub(crate) async fn search_category(
+    backend: Option<Arc<dyn SpeakerBackend>>,
+    kind: &str,
+    query: &str,
+    start: usize,
+    max_items: usize,
+    cover_proxy_base: &str,
+) -> BrowseResult {
+    let Some(backend) = backend else {
+        return empty(kind, "", start);
+    };
+    let (total, items) = search_page(
+        backend.as_ref(),
+        kind,
+        query,
+        start,
+        max_items,
+        cover_proxy_base,
+    )
+    .await;
+    BrowseResult {
+        total_items: total,
+        items: items.into_iter().map(qobuz::category_hit).collect(),
+        ..empty(kind, "", start)
     }
 }
 
@@ -93,7 +233,7 @@ pub(crate) fn plan_play_item(
     if !kind.plays_qobuz() {
         return Err("speaker cannot play qobuz");
     }
-    let track = qobuz::known_track(id);
+    let track = qobuz::known_item(id);
     let Some(media) = qobuz::media_for(id, track.as_ref()) else {
         return Err("not a qobuz item");
     };
@@ -243,6 +383,67 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn search_fills_each_category_with_hits_and_links() {
+        let fake = FakeSpeaker::with_status(SpeakerStatus::default());
+        let row = |kind: &str, path: &str, title: &str| {
+            json!({"type": if kind == "track" { "audio" } else { "container" },
+                "path": path, "title": title, "containerType": kind})
+        };
+        {
+            let mut folders = fake.folders.lock().unwrap();
+            folders.insert(
+                "qobuz:/search/albums?query=abbey road".into(),
+                ServiceRows {
+                    total: 120,
+                    rows: vec![
+                        row("album", "qobuz:/album?id=A1", "Abbey Road"),
+                        row("album", "qobuz:/album?id=A2", "Abbey Road (Remaster)"),
+                    ],
+                },
+            );
+            folders.insert(
+                "qobuz:/search/tracks?query=abbey road".into(),
+                ServiceRows {
+                    total: 1,
+                    rows: vec![row("track", "qobuz:/track?id=T1", "Come Together")],
+                },
+            );
+        }
+        let backend: Arc<dyn SpeakerBackend> = fake;
+        let body = global_search(
+            Some(Arc::clone(&backend)),
+            "spotify@qobuz:track#5,album#1",
+            "abbey road",
+            "http://h:7091",
+        )
+        .await;
+        let result = body.result.unwrap();
+        let albums = result.albums.unwrap();
+        assert_eq!((albums.count, albums.total_items), (1, 120));
+        assert_eq!(albums.items[0].uid.as_deref(), Some("spotify/qobuz"));
+        assert_eq!(
+            albums.link,
+            "audio/cfg/search/spotify/qobuz/album/abbey%20road/0/50"
+        );
+        assert_eq!(result.tracks.unwrap().items[0].name, "Come Together");
+        assert!(result.artists.is_none(), "not asked for");
+        assert!(result.shows.unwrap().items.is_empty());
+        let top = result.topresults.unwrap();
+        assert_eq!((top.tracks.len(), top.albums.len()), (1, 1));
+        assert_eq!(result.user, "qobuz");
+
+        let more = search_category(Some(backend), "album", "abbey road", 1, 50, "h").await;
+        assert_eq!(more.total_items, 120);
+        assert_eq!(more.items[0].id, "spotify:album:A2");
+        assert!(global_search(None, "qobuz", "x", "h")
+            .await
+            .result
+            .unwrap()
+            .albums
+            .is_none());
+    }
+
+    #[tokio::test]
     async fn an_album_plays_on_the_zones_naim_speaker() {
         use crate::speaker::binding::ZoneSpeakerTarget;
         use crate::speaker::fake;
@@ -350,6 +551,21 @@ mod tests {
             }
             if folder == "5" {
                 drill = result.items.first().map(|i| i.id.clone());
+            }
+        }
+        for (kind, query) in [("album", "abbey road"), ("track", "beatles")] {
+            let result = search_category(
+                Some(Arc::clone(&backend)),
+                kind,
+                query,
+                0,
+                3,
+                "http://proxy",
+            )
+            .await;
+            println!("search {kind} {query:?}: {} hits", result.total_items);
+            for item in &result.items {
+                println!("  {} {}", item.id, item.name);
             }
         }
         if let Some(album) = drill {

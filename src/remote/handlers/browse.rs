@@ -179,6 +179,7 @@ impl Api {
         build_wire_result_response(
             "globalsearch_result",
             json!({
+                "spotify@qobuz": crate::qobuz::SEARCH_KINDS,
                 "tunein": ["station", "custom"],
             }),
             Some(command),
@@ -233,6 +234,19 @@ impl Api {
             total_items: 0,
         });
         let user = params.get("user").unwrap_or("nouser").to_string();
+        if crate::qobuz::is_service(&service_tag) {
+            // The "show more" list of a Qobuz category (as the earlier Qobuz bridge answered).
+            let payload = json!([{
+                "results": [{
+                    "where": crate::qobuz::SERVICE_CMD,
+                    "user": crate::qobuz::SERVICE_USER,
+                    "tag": browse.id,
+                    "totalitems": browse.total_items,
+                    "items": browse.items,
+                }]
+            }]);
+            return build_wire_result_response("search_reply_result", payload, Some(command), &[]);
+        }
         let payload = crate::radio::build_radio_search_wire_payload(&browse, &user);
         build_wire_result_response("search_result", payload, Some(command), &[])
     }

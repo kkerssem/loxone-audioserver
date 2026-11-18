@@ -144,36 +144,47 @@ pub fn track_audiopath(track_path: &str) -> Option<String> {
     (!id.is_empty() && !id.contains(['&', '/'])).then(|| format!("qobuz:track:{id}"))
 }
 
-/// What a track's `mediaRoles` shows while it plays (the speaker does not look it up).
+/// What an item shows: for a track, what its `mediaRoles` carries while it plays (the speaker
+/// does not look a track up); for any item, a room favorite's title and cover.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct TrackInfo {
+pub struct ItemInfo {
     pub title: String,
     pub artist: String,
     pub album: String,
     pub cover_url: String,
 }
 
-/// Tracks seen while browsing, so playing one by id can show its title (see [`media_for`]).
-static TRACKS: LazyLock<Mutex<HashMap<String, TrackInfo>>> =
+/// Items seen while browsing or playing, so an item played or saved by id can show its title
+/// and cover (see [`media_for`], room favorites).
+static ITEMS: LazyLock<Mutex<HashMap<String, ItemInfo>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
-/// Tracks remembered at most; the list starts over when full.
-const TRACK_CACHE_LIMIT: usize = 2000;
+/// Items remembered at most; the list starts over when full.
+const ITEM_CACHE_LIMIT: usize = 2000;
 
-/// Remember the tracks among browsed rows.
-pub fn remember_tracks(rows: &[Value]) {
-    let Ok(mut tracks) = TRACKS.lock() else {
+/// Remember what an item shows (`id` in any of the App's spellings).
+pub fn remember_item(id: &str, info: ItemInfo) {
+    let (Some(id), Ok(mut items)) = (normalize_id(id), ITEMS.lock()) else {
         return;
     };
-    for row in rows.iter().filter(|r| text(r, "type") == "audio") {
-        let Some(id) = track_audiopath(text(row, "path")) else {
+    if info.title.is_empty() {
+        return;
+    }
+    if items.len() >= ITEM_CACHE_LIMIT && !items.contains_key(&id) {
+        items.clear();
+    }
+    items.insert(id, info);
+}
+
+/// Remember the catalogue items among browsed rows.
+pub fn remember_rows(rows: &[Value]) {
+    for row in rows {
+        let id = loxone_id(text(row, "path"));
+        if item_kind(&id).is_none() {
             continue;
-        };
-        if tracks.len() >= TRACK_CACHE_LIMIT && !tracks.contains_key(&id) {
-            tracks.clear();
         }
-        tracks.insert(
-            id,
-            TrackInfo {
+        remember_item(
+            &id,
+            ItemInfo {
                 title: text(row, "title").to_string(),
                 artist: meta(row, "artist").to_string(),
                 album: meta(row, "album").to_string(),
@@ -183,17 +194,26 @@ pub fn remember_tracks(rows: &[Value]) {
     }
 }
 
-/// A track remembered by [`remember_tracks`].
-pub fn known_track(id: &str) -> Option<TrackInfo> {
+/// An item remembered by [`remember_item`] / [`remember_rows`].
+pub fn known_item(id: &str) -> Option<ItemInfo> {
     let id = normalize_id(id)?;
-    TRACKS.lock().ok()?.get(&id).cloned()
+    ITEMS.lock().ok()?.get(&id).cloned()
+}
+
+/// The cover URL behind our cors-proxy URL (`…/cors-proxy?url=<encoded>&…`), or `url` itself.
+pub fn unproxied_cover(url: &str) -> String {
+    url.split_once("/cors-proxy?url=")
+        .map(|(_, rest)| rest.split('&').next().unwrap_or(rest))
+        .and_then(|encoded| urlencoding::decode(encoded).ok())
+        .map(|decoded| decoded.into_owned())
+        .unwrap_or_else(|| url.to_string())
 }
 
 /// The `mediaRoles` that plays a Loxone item on the speaker.
 ///
 /// Verified on a Mu-so Qb 2 (2026-11-18): an album, playlist or artist plays from its path
 /// alone. A track needs its `prePlayPath`, and without a title the speaker reports none.
-pub fn media_for(id: &str, track: Option<&TrackInfo>) -> Option<Value> {
+pub fn media_for(id: &str, track: Option<&ItemInfo>) -> Option<Value> {
     let path = speaker_path(id)?;
     if item_kind(id) != Some("track") {
         return Some(json!({ "type": "container", "path": path, "containerPlayable": true }));
@@ -332,6 +352,115 @@ pub fn browse_item(row: &Value, slot: usize, cover: &dyn Fn(&str) -> String) -> 
     }
 }
 
+/// Search categories Qobuz has, in the order the Loxone App shows them.
+pub const SEARCH_KINDS: [&str; 4] = ["track", "album", "artist", "playlist"];
+
+/// Whether a global search provider spec (`spotify@qobuz:track#5,album#5`, `qobuz`, …) is
+/// for this service.
+pub fn is_search_provider(spec: &str) -> bool {
+    let provider = spec.split(['@', ':']).next().unwrap_or(spec);
+    is_service(provider)
+}
+
+/// Rows per category asked by a provider spec (`track#5,album#5`); 5 for each category the
+/// spec does not list, as the Loxone App sends none on its first search.
+pub fn search_limits(spec: &str) -> Vec<(&'static str, usize)> {
+    let listed: Vec<(&str, usize)> = spec
+        .split_once(':')
+        .map(|(_, list)| list)
+        .unwrap_or("")
+        .split(',')
+        .filter_map(|entry| {
+            let (kind, n) = entry.split_once('#')?;
+            Some((kind.trim(), n.trim().parse().ok()?))
+        })
+        .collect();
+    SEARCH_KINDS
+        .into_iter()
+        .filter_map(|kind| match listed.iter().find(|(k, _)| *k == kind) {
+            Some((_, 0)) => None,
+            Some((_, n)) => Some((kind, *n)),
+            None if listed.is_empty() => Some((kind, 5)),
+            None => None,
+        })
+        .collect()
+}
+
+/// Speaker search folder for a Loxone search category; `None` for categories Qobuz lacks.
+/// The query goes into the path as is: the whole path is URL-encoded on the request.
+pub fn search_path(kind: &str, query: &str) -> Option<String> {
+    let folder = match kind {
+        "track" | "tracks" => "tracks",
+        "album" | "albums" => "albums",
+        "artist" | "artists" => "artists",
+        "playlist" | "playlists" => "playlists",
+        _ => return None,
+    };
+    Some(format!("qobuz:/search/{folder}?query={query}"))
+}
+
+/// The App's link to a search category's full list (`audio/cfg/search/…`).
+pub fn search_link(kind: &str, query: &str) -> String {
+    format!(
+        "audio/cfg/search/{SERVICE_CMD}/{SERVICE_USER}/{kind}/{}/0/50",
+        urlencoding::encode(query)
+    )
+}
+
+/// Caption of a search category.
+pub fn search_caption(kind: &str) -> &'static str {
+    match kind {
+        "track" => "Tracks",
+        "album" => "Albums",
+        "artist" => "Artists",
+        _ => "Playlists",
+    }
+}
+
+/// The account stub search results and hits carry as `service`.
+pub fn search_hit_service() -> Value {
+    json!({
+        "cmd": SERVICE_CMD,
+        "id": SERVICE_USER,
+        "user": SERVICE_USER,
+        "uid": format!("{SERVICE_CMD}/{SERVICE_USER}"),
+        "fake": true,
+        "provider": SERVICE_USER,
+    })
+}
+
+/// A browse item as a global search hit. The App opens a hit through its own service
+/// (`ServiceLoader`), so hits carry the account at their root and nested as `service`; the
+/// `user` must equal the `getservices` row's.
+pub fn search_hit(mut item: BrowseResultItem) -> BrowseResultItem {
+    if item.r#type == FILE_TYPE_TRACK {
+        item.name = item.title.clone().unwrap_or(item.name);
+        return item;
+    }
+    item.r#type = FILE_TYPE_SERVICE_ITEM;
+    item.audiopath = Some(item.id.clone());
+    item.cmd = Some(SERVICE_CMD.to_string());
+    item.user = Some(SERVICE_USER.to_string());
+    item.uid = Some(format!("{SERVICE_CMD}/{SERVICE_USER}"));
+    item.fake = Some(true);
+    item.provider = Some(SERVICE_USER.to_string());
+    item.service = Some(search_hit_service());
+    item
+}
+
+/// A browse item for a search category's "show more" list, which the Loxone App reads with
+/// `spotify:` ids (as the earlier Qobuz bridge sent them); play and open map them back.
+pub fn category_hit(item: BrowseResultItem) -> BrowseResultItem {
+    let spotify = |id: &str| match id.strip_prefix("qobuz:") {
+        Some(rest) if item_kind(id).is_some() => format!("{SERVICE_CMD}:{rest}"),
+        _ => id.to_string(),
+    };
+    let mut hit = search_hit(item);
+    hit.id = spotify(&hit.id);
+    hit.audiopath = hit.audiopath.as_deref().map(spotify);
+    hit
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,7 +540,7 @@ mod tests {
             media_for("qobuz:album:A1", None).unwrap(),
             json!({"type": "container", "path": "qobuz:/album?id=A1", "containerPlayable": true})
         );
-        let info = TrackInfo {
+        let info = ItemInfo {
             title: "Faith".into(),
             artist: "The Cure".into(),
             album: "Faith".into(),
@@ -510,19 +639,37 @@ mod tests {
     }
 
     #[test]
-    fn browsed_tracks_are_remembered_for_playing_by_id() {
-        remember_tracks(&[
+    fn browsed_items_are_remembered_for_playing_and_saving_by_id() {
+        remember_rows(&[
             json!({"type": "audio", "path": "qobuz:/track?id=990001", "title": "Faith",
                 "icon": "https://static.qobuz.com/c.jpg",
                 "mediaData": {"metaData": {"artist": "The Cure", "album": "Faith"}}}),
-            json!({"type": "container", "path": "qobuz:/album?id=990002", "title": "Not a track"}),
+            json!({"type": "container", "path": "qobuz:/album?id=990002", "title": "Pornography"}),
+            json!({"type": "container", "path": "qobuz:/user/favourites/tracks", "title": "Tracks"}),
         ]);
-        let info = known_track("spotify:track:990001").unwrap();
+        let info = known_item("spotify:track:990001").unwrap();
         assert_eq!(
             (info.title.as_str(), info.artist.as_str()),
             ("Faith", "The Cure")
         );
-        assert_eq!(known_track("qobuz:album:990002"), None);
+        assert_eq!(
+            known_item("qobuz:album:990002").unwrap().title,
+            "Pornography"
+        );
+        remember_item("qobuz:album:990003", ItemInfo::default());
+        assert_eq!(known_item("qobuz:album:990003"), None, "nothing to show");
+    }
+
+    #[test]
+    fn proxied_covers_unwrap_to_the_original() {
+        assert_eq!(
+            unproxied_cover("http://h:7091/cors-proxy?url=https%3A%2F%2Fs.qobuz.com%2Fa.jpg&id=x"),
+            "https://s.qobuz.com/a.jpg"
+        );
+        assert_eq!(
+            unproxied_cover("https://s.qobuz.com/a.jpg"),
+            "https://s.qobuz.com/a.jpg"
+        );
     }
 
     #[test]
@@ -532,6 +679,44 @@ mod tests {
             Some("qobuz:track:2531160")
         );
         assert_eq!(track_audiopath("vtuner:abc"), None);
+    }
+
+    #[test]
+    fn search_specs_limits_and_paths() {
+        assert!(is_search_provider("spotify@qobuz:track#5,album#5"));
+        assert!(is_search_provider("qobuz"));
+        assert!(!is_search_provider("tunein:station#10"));
+        assert_eq!(
+            search_limits("spotify@qobuz:track#3,album#0,artist#2,show#5"),
+            vec![("track", 3), ("artist", 2)]
+        );
+        assert_eq!(search_limits("spotify@qobuz").len(), 4);
+        assert_eq!(
+            search_path("album", "abbey road").as_deref(),
+            Some("qobuz:/search/albums?query=abbey road")
+        );
+        assert_eq!(search_path("show", "x"), None);
+    }
+
+    #[test]
+    fn search_hits_carry_the_account_and_category_lists_use_spotify_ids() {
+        let album = json!({"type": "container", "path": "qobuz:/album?id=A1",
+            "title": "Abbey Road", "containerType": "album"});
+        let hit = search_hit(browse_item(&album, 1, &no_proxy));
+        assert_eq!(hit.r#type, FILE_TYPE_SERVICE_ITEM);
+        assert_eq!(hit.uid.as_deref(), Some("spotify/qobuz"));
+        assert_eq!(hit.user.as_deref(), Some("qobuz"));
+        assert_eq!(hit.service.as_ref().unwrap()["user"], "qobuz");
+        let listed = category_hit(browse_item(&album, 1, &no_proxy));
+        assert_eq!(listed.id, "spotify:album:A1");
+        assert_eq!(normalize_id(&listed.id).as_deref(), Some("qobuz:album:A1"));
+
+        let track = json!({"type": "audio", "path": "qobuz:/track?id=T1", "title": "Something",
+            "mediaData": {"metaData": {"artist": "The Beatles"}}});
+        let hit = search_hit(browse_item(&track, 1, &no_proxy));
+        assert_eq!(hit.r#type, FILE_TYPE_TRACK);
+        assert_eq!(hit.name, "Something");
+        assert_eq!(hit.uid, None);
     }
 
     #[test]

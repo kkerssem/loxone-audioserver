@@ -214,6 +214,19 @@ pub(crate) fn publish_speaker_status(
     if registry.is_cast_owned(playerid) {
         return;
     }
+    // A Qobuz track that plays: remember what it shows, so replaying it from recents or a
+    // favorite shows its title.
+    if let Some(id) = crate::qobuz::track_audiopath(&status.track_path) {
+        crate::qobuz::remember_item(
+            &id,
+            crate::qobuz::ItemInfo {
+                title: status.title.clone(),
+                artist: status.artist.clone(),
+                album: status.album.clone(),
+                cover_url: status.cover_url.clone(),
+            },
+        );
+    }
     if status.power == SpeakerPower::On {
         let stored = zone_volume::get(playerid);
         if stored.is_none_or(|v| v.level != status.volume || v.muted != status.muted) {

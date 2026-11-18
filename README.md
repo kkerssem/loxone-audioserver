@@ -92,6 +92,8 @@ When a Naim Mu-so (2nd gen) that is logged into Qobuz in the Naim app is bound t
 - **Browse:** Your Library (playlists, liked songs, albums, artists), new releases and featured playlists.
 - **Play:** an album, playlist or artist plays from the start on the zone's own speaker; a track on its own plays alone. A track tapped inside an album or playlist plays that album or playlist from the start: the speaker cannot start one at a given track.
 - **Skip buttons** move through the album or playlist.
+- **Search:** the App's search finds Qobuz tracks, albums, artists and playlists ("show more" lists all of a category).
+- **Room favorites and recents:** Qobuz albums, playlists and tracks can be saved as a room favorite and replayed; tracks played through the speaker appear under recently played.
 - Only zones whose speaker is a Naim can play Qobuz; KEF has not been checked yet. The queue panel stays empty.
 
 The Loxone App only knows Spotify-type music services, so Qobuz is presented as a Spotify account named Qobuz (as the earlier Qobuz Connect build did).
@@ -100,7 +102,7 @@ The Loxone App only knows Spotify-type music services, so Qobuz is presented as 
 
 `audioserver-config.json` has two sections: `loxone` (the Miniserver `setconfig` snapshot and its CRC) and `audioserver` (`players[]` with zone mappings, volume presets and room favorites).
 
-**Room favorites** are kept per zone in `audioserver-config.json`. A favorite of a TuneIn or custom station plays via Cast. A radio station started from a KEF or Naim speaker's own app can be a favorite too: the audioserver keeps the speaker's own description of the station (`speaker_kind`, `speaker_media`) and plays it on that zone's speaker again. Such a favorite only plays on the same kind of speaker, so copying it to a room with another speaker brand does not work. Qobuz Connect, or Qobuz started from the Naim app, cannot be a favorite: the speaker does not say what plays, and adding it is refused.
+**Room favorites** are kept per zone in `audioserver-config.json`. A favorite of a TuneIn or custom station plays via Cast. A radio station started from a KEF or Naim speaker's own app can be a favorite too: the audioserver keeps the speaker's own description of the station (`speaker_kind`, `speaker_media`) and plays it on that zone's speaker again. Such a favorite only plays on the same kind of speaker, so copying it to a room with another speaker brand does not work. Qobuz items browsed in the Loxone App can be favorites (they play on a Naim speaker, see below). Qobuz Connect from the Qobuz app cannot: the speaker does not say what plays, and adding it is refused.
 
 ## Debugging
 

@@ -213,6 +213,43 @@ pub async fn run(
                 provider_spec,
                 query,
                 sender,
+            } if crate::qobuz::is_search_provider(&provider_spec) => {
+                let backend = qobuz::browse_backend(&speaker_manager);
+                let cover_proxy_base = cover_proxy_base.clone();
+                tokio::spawn(async move {
+                    let result =
+                        qobuz::global_search(backend, &provider_spec, &query, &cover_proxy_base)
+                            .await;
+                    let _ = sender.send(result);
+                });
+            }
+            IoCommand::SearchCategory {
+                service,
+                kind,
+                query,
+                start,
+                max_items,
+                sender,
+            } if crate::qobuz::is_service(&service) => {
+                let backend = qobuz::browse_backend(&speaker_manager);
+                let cover_proxy_base = cover_proxy_base.clone();
+                tokio::spawn(async move {
+                    let result = qobuz::search_category(
+                        backend,
+                        &kind,
+                        &query,
+                        start,
+                        max_items,
+                        &cover_proxy_base,
+                    )
+                    .await;
+                    let _ = sender.send(result);
+                });
+            }
+            IoCommand::GlobalSearch {
+                provider_spec,
+                query,
+                sender,
             } => {
                 let result = browse::handle_global_search(&provider_spec, &query).await;
                 let _ = sender.send(result);
