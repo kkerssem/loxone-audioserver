@@ -7,6 +7,7 @@
 mod browse;
 mod cast;
 mod config;
+mod diagnosis;
 mod speaker;
 mod status;
 mod transport;
@@ -35,6 +36,7 @@ pub fn new_hw_channel_ids() -> HwChannelIds {
 
 pub use crate::zone_enrich::apply_cover_proxy;
 pub use crate::zone_publish::{apply_zone_update, publish_zone_state};
+pub(crate) use diagnosis::DiagnosisReport;
 
 /// Run the coordinator. `speaker_events` is the channel speaker discovery and poll tasks report
 /// on; its sender is also handed to the speaker manager.
@@ -196,6 +198,16 @@ pub async fn run(
                 )
                 .await;
                 let _ = sender.send(result);
+            }
+            IoCommand::Diagnosis(reply) => {
+                let _ = reply.send(diagnosis::gather(
+                    &mac_id,
+                    serial_with_config.is_some(),
+                    &zones,
+                    &discovered_speakers,
+                    &speaker_manager,
+                    &cast_manager,
+                ));
             }
             IoCommand::SpeakerStation { player_id, reply } => {
                 let _ = reply.send(speaker::current_speaker_station(&speaker_manager, player_id));
@@ -517,6 +529,32 @@ mod io_command_tests {
             .expect("all status timed out")
             .expect("all status dropped");
         assert!(!states.is_empty());
+
+        coordinator.abort();
+    }
+
+    #[tokio::test]
+    async fn diagnosis_reports_the_audioserver_serial() {
+        let _config = crate::config::AudioserverConfigFile::lock_for_test();
+        let app_config = AppConfig::new("504F94000002".into(), None, None, None).unwrap();
+        let (tx, rx) = mpsc::channel(8);
+        let speaker_channel = mpsc::channel(8);
+        let (events, _) = broadcast::channel(8);
+        let hw = new_hw_channel_ids();
+
+        let coordinator = tokio::spawn(async move {
+            let _ = run(app_config, rx, speaker_channel, events, hw).await;
+        });
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        tx.send(IoCommand::Diagnosis(reply_tx)).await.unwrap();
+        let report = tokio::time::timeout(Duration::from_secs(2), reply_rx)
+            .await
+            .expect("diagnosis timed out")
+            .expect("diagnosis dropped");
+        let v = serde_json::to_value(report).unwrap();
+        assert_eq!(v["audioserver"]["serial"], "504F94000002");
+        assert!(v["zones"].is_array());
 
         coordinator.abort();
     }

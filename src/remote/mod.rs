@@ -260,6 +260,8 @@ pub enum IoCommand {
         kind: String,
         media: serde_json::Value,
     },
+    /// `audio/cfg/diagnosis`: zones, speakers and Cast devices as the audioserver sees them.
+    Diagnosis(oneshot::Sender<crate::coordinator::DiagnosisReport>),
     Players(PlayerNames),
     /// Seek target in seconds (KEF/Naim speakers via `seekTime`; Cast radio is live).
     Position(Playerid, i32),
@@ -402,7 +404,6 @@ fn retired_command_reply(
     params: &matchit::Params,
 ) -> anyhow::Result<String> {
     let (name, payload) = match cmd {
-        Command::Diagnosis => ("diagnosis_result", json!({})),
         Command::GetPlayLists => {
             let empty = BrowseResult {
                 id: params.get("id").unwrap_or("0").to_string(),
@@ -471,8 +472,8 @@ impl Api {
         let reply = match matched.value {
             Command::Authenticate => self.authenticate(command, &matched.params),
             Command::AuthenticateFalse => self.authenticate_false(command, &matched.params),
-            Command::Diagnosis
-            | Command::GetPlayLists
+            Command::Diagnosis => self.diagnosis(command).await,
+            Command::GetPlayLists
             | Command::ServiceCfgGetLink
             | Command::ServiceCfgAdd
             | Command::ServiceCfgDelete
@@ -729,8 +730,6 @@ mod tests {
         assert_eq!(v["getplaylists2_result"][0]["items"], json!([]));
         let v = reply("audio/3/library/play/qobuz:album:1/noshuffle");
         assert_eq!(v["play_result"], json!([]));
-        let v = reply("audio/cfg/diagnosis");
-        assert_eq!(v["diagnosis_result"], json!({}));
     }
 
     #[test]
