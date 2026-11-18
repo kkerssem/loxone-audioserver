@@ -13,6 +13,7 @@
 //! answered with HTTP 500 (KEF LS60). Pause therefore sends `stop`, which clears the player
 //! data, so `play` cannot resume it. Play restarts it through the Naim `/nowplaying` resume, or
 //! by sending `play` with the stopped stream's `mediaRoles` (both vendors; verified on an LS60).
+//! While it can, the stopped station is reported as paused, not as an empty player.
 //!
 //! The API is unofficial (reverse-engineered; reference: pykefcontrol). Paths were checked
 //! against an LS60 and a Mu-so Qb 2 on 2026-11-14.
@@ -107,6 +108,9 @@ pub struct Stream800 {
     /// Live stream that was playing when a voice message took the speaker over (see
     /// [`SpeakerBackend::interrupt`]); replayed from its `mediaRoles` afterwards.
     interrupted: Mutex<Option<Value>>,
+    /// Last poll that played a station from the speaker's own app, shown as paused once a
+    /// pause has stopped it (see [`stopped_station_as_paused`]).
+    last_station: Mutex<Option<SpeakerStatus>>,
 }
 
 impl Stream800 {
@@ -124,6 +128,7 @@ impl Stream800 {
             last_input: Mutex::new(None),
             live_stream: Mutex::new(None),
             interrupted: Mutex::new(None),
+            last_station: Mutex::new(None),
         }
     }
 
@@ -388,6 +393,24 @@ impl Stream800 {
         Ok(())
     }
 
+    /// Remember the station a poll plays, and show it as paused while the player reads as
+    /// stopped and play can restart it: on a Naim through `/nowplaying`, otherwise from the
+    /// live stream kept by the pause.
+    fn present_stopped_station(&self, status: SpeakerStatus) -> SpeakerStatus {
+        let mut last = self.last_station.lock().expect("station lock");
+        if status.power != SpeakerPower::On {
+            *last = None;
+            return status;
+        }
+        if status.mode == Some(Mode::Play) {
+            *last = status.station.is_some().then(|| status.clone());
+            return status;
+        }
+        let can_restart =
+            self.vendor == Vendor::Naim || self.live_stream.lock().expect("stream lock").is_some();
+        stopped_station_as_paused(&status, last.as_ref(), can_restart).unwrap_or(status)
+    }
+
     /// Track the kept live stream from a poll: standby drops it; while playing, a stream just
     /// replayed adopts the new session and any other session drops it. A late `playing` read of
     /// the stopped session itself keeps it.
@@ -411,6 +434,31 @@ impl Stream800 {
             _ => {}
         }
     }
+}
+
+/// Live radio has no pause: Loxone's pause stops it and the player then reads as empty, which
+/// the Loxone App shows as "No music selected". While play can restart the station, show it
+/// as paused instead, at the speaker's current volume.
+fn stopped_station_as_paused(
+    status: &SpeakerStatus,
+    last: Option<&SpeakerStatus>,
+    can_restart: bool,
+) -> Option<SpeakerStatus> {
+    // A KEF on another input (TV, optical, …) reads that input as its source: not the radio.
+    let stopped_empty = status.mode.is_none() && status.title.is_empty() && status.source == "wifi";
+    if !(stopped_empty && can_restart) {
+        return None;
+    }
+    let last = last?;
+    Some(SpeakerStatus {
+        power: status.power,
+        mode: Some(Mode::Pause),
+        volume: status.volume,
+        muted: status.muted,
+        position_s: 0,
+        play_session: status.play_session.clone(),
+        ..last.clone()
+    })
 }
 
 /// Player state after sending `action` towards `want_playing`.
@@ -691,7 +739,7 @@ impl SpeakerBackend for Stream800 {
                 ..Default::default()
             };
             self.observe_live_stream(&status);
-            return Ok(status);
+            return Ok(self.present_stopped_station(status));
         }
         let (player_data, volume, mute, play_time) = tokio::join!(
             self.get_data(PATH_PLAYER_DATA),
@@ -708,7 +756,7 @@ impl SpeakerBackend for Stream800 {
             source.as_deref(),
         );
         self.observe_live_stream(&status);
-        Ok(status)
+        Ok(self.present_stopped_station(status))
     }
 
     async fn play(&self) -> Result<()> {
@@ -802,6 +850,7 @@ impl SpeakerBackend for Stream800 {
         if !on {
             // Switched off: a stream kept from before must not restart on the next wake.
             *self.live_stream.lock().expect("stream lock") = None;
+            *self.last_station.lock().expect("station lock") = None;
         }
         match self.vendor {
             Vendor::Kef => {
@@ -1590,6 +1639,78 @@ mod tests {
             let (fake, router) = getdata_router(&fake);
             let host = serve(fake.clone(), router).await;
             (fake, Stream800::new(&host, Vendor::Kef))
+        }
+
+        #[tokio::test]
+        async fn station_stopped_by_pause_shows_as_paused_until_another_stream_plays() {
+            let radio = with_replay_path(first(fixture("ls60_airable")));
+            let (_, playing) = kef_reporting(radio).await;
+            let before = playing.status().await.unwrap();
+            assert!(before.station.is_some(), "fixture is a replayable station");
+            let remembered = playing.last_station.lock().unwrap().clone();
+            assert_eq!(remembered.as_ref(), Some(&before));
+
+            let (_, stopped) = kef_reporting(stopped_radio()).await;
+            *stopped.last_station.lock().unwrap() = remembered;
+            assert_eq!(
+                stopped.status().await.unwrap().mode,
+                None,
+                "KEF without a kept stream cannot restart it"
+            );
+            keep(&stopped, Some("5058108944"));
+            let shown = stopped.status().await.unwrap();
+            assert_eq!(shown.mode, Some(Mode::Pause));
+            assert_eq!(shown.title, before.title);
+            assert_eq!(shown.cover_url, before.cover_url);
+            assert_eq!(shown.station, before.station);
+            assert_eq!(shown.position_s, 0);
+
+            // A track playing replaces the remembered station.
+            let mut track = first(fixture("ls60_qobuz"));
+            track["state"] = json!("playing");
+            let (_, other) = kef_reporting(track).await;
+            *other.last_station.lock().unwrap() = Some(before);
+            other.status().await.unwrap();
+            assert!(other.last_station.lock().unwrap().is_none());
+        }
+
+        #[test]
+        fn only_an_empty_stopped_player_on_wifi_shows_the_station() {
+            let last = SpeakerStatus {
+                mode: Some(Mode::Play),
+                source: "radio".into(),
+                title: "Radio Paradise".into(),
+                volume: 20,
+                position_s: 300,
+                live: true,
+                ..Default::default()
+            };
+            let stopped = SpeakerStatus {
+                volume: 35,
+                muted: true,
+                source: "wifi".into(),
+                ..Default::default()
+            };
+            let shown = stopped_station_as_paused(&stopped, Some(&last), true).unwrap();
+            assert_eq!(shown.mode, Some(Mode::Pause));
+            assert_eq!((shown.volume, shown.muted), (35, true), "current volume");
+            assert_eq!(shown.source, "radio");
+            assert_eq!(shown.position_s, 0);
+            assert!(shown.live);
+
+            assert!(stopped_station_as_paused(&stopped, Some(&last), false).is_none());
+            assert!(stopped_station_as_paused(&stopped, None, true).is_none());
+            let optical = SpeakerStatus {
+                source: "optical".into(),
+                ..stopped.clone()
+            };
+            assert!(stopped_station_as_paused(&optical, Some(&last), true).is_none());
+            let paused_track = SpeakerStatus {
+                mode: Some(Mode::Pause),
+                title: "Song".into(),
+                ..stopped.clone()
+            };
+            assert!(stopped_station_as_paused(&paused_track, Some(&last), true).is_none());
         }
 
         #[tokio::test]
