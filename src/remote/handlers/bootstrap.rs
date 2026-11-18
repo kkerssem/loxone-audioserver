@@ -170,8 +170,17 @@ impl Api {
     }
 
     /// No streaming accounts: playback is started from each speaker's own app.
-    pub(in crate::remote) fn get_services(&self, command: &str) -> anyhow::Result<String> {
-        build_wire_result_response("getservices_result", json!([]), Some(command), &[])
+    /// `audio/cfg/getservices`: the virtual Qobuz account while a speaker that browses Qobuz is
+    /// bound (see [`crate::qobuz`]).
+    pub(in crate::remote) async fn get_services(&self, command: &str) -> anyhow::Result<String> {
+        let (reply, rx) = oneshot::channel();
+        self.sender.send(IoCommand::QobuzAvailable(reply)).await?;
+        let services = if rx.await.unwrap_or(false) {
+            json!([crate::qobuz::service_entry()])
+        } else {
+            json!([])
+        };
+        build_wire_result_response("getservices_result", services, Some(command), &[])
     }
 
     pub(in crate::remote) fn get_available_services(

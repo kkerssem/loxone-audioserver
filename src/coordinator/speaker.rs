@@ -287,6 +287,13 @@ pub(crate) fn plan_speaker_commands(
             }
             _ => Vec::new(),
         },
+        // Next / previous track of what plays (an album, a playlist); live radio has none.
+        IoCommand::QueuePlus(_) | IoCommand::QueueMinus(_) => match last {
+            Some(s) if s.power == SpeakerPower::On && s.mode.is_some() && !s.live => {
+                vec![SpeakerCommand::Skip(matches!(cmd, IoCommand::QueuePlus(_)))]
+            }
+            _ => Vec::new(),
+        },
         _ => Vec::new(),
     }
 }
@@ -488,7 +495,11 @@ mod tests {
             Playerid(2),
             &manager,
         );
-        run_speaker_transport(&IoCommand::QueuePlus(Playerid(2)), Playerid(2), &manager);
+        run_speaker_transport(
+            &IoCommand::Shuffle(Playerid(2), None),
+            Playerid(2),
+            &manager,
+        );
         loop {
             match tokio::time::timeout(Duration::from_secs(2), rx.recv())
                 .await
@@ -659,7 +670,30 @@ mod tests {
 
     #[test]
     fn unsupported_commands_plan_nothing() {
-        assert!(plan(IoCommand::QueuePlus(Playerid(1)), Some(on(1))).is_empty());
+        assert!(plan(IoCommand::Shuffle(Playerid(1), None), Some(on(1))).is_empty());
+    }
+
+    #[test]
+    fn skip_buttons_move_through_a_track_list_only() {
+        assert_eq!(
+            plan(IoCommand::QueuePlus(Playerid(1)), Some(on(1))),
+            vec![SpeakerCommand::Skip(true)]
+        );
+        assert_eq!(
+            plan(IoCommand::QueueMinus(Playerid(1)), Some(on(1))),
+            vec![SpeakerCommand::Skip(false)]
+        );
+        let radio = SpeakerStatus {
+            live: true,
+            ..on(1)
+        };
+        assert!(plan(IoCommand::QueuePlus(Playerid(1)), Some(radio)).is_empty());
+        let idle = SpeakerStatus {
+            mode: None,
+            ..on(1)
+        };
+        assert!(plan(IoCommand::QueuePlus(Playerid(1)), Some(idle)).is_empty());
+        assert!(plan(IoCommand::QueuePlus(Playerid(1)), None).is_empty());
     }
 
     #[test]

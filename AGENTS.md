@@ -44,6 +44,7 @@ CI (`.github/workflows/ci.yml`) runs `fmt`, instrumented tests/coverage gates, a
 | Google Cast | [`src/cast/`](src/cast/) | Cast discovery, radio playback session, remote volume/transport sync |
 | Voice messages | [`src/voice_upload.rs`](src/voice_upload.rs), [`coordinator/voice.rs`](src/coordinator/voice.rs), [`cast/announce.rs`](src/cast/announce.rs) | App recording: `PUT /audio/cfg/upload/audioupload/add/{file}` (7091) stores the WAV in `voice-uploads/`; `audio/grouped/playuploadedfile/{file}/{zones}` casts it once per zone (TTS volume as minimum), then restarts our Cast radio or the speaker's own live radio (a track stays stopped) |
 | Radio | [`src/radio/`](src/radio/) | TuneIn browse/search, custom streams, radio audiopaths |
+| Qobuz | [`src/qobuz.rs`](src/qobuz.rs), [`coordinator/qobuz.rs`](src/coordinator/qobuz.rs) | Virtual Spotify account; Loxone ids ↔ speaker paths, `getRows` rows → browse items, `mediaRoles` to play; browse/play through a Naim speaker |
 | Player wire shape | [`src/player_state.rs`](src/player_state.rs) | `PlayerState` / `audio_event` |
 | Wire envelopes | [`src/wire_response.rs`](src/wire_response.rs) | `{name}_result` before `command` |
 
@@ -87,7 +88,7 @@ When adding or changing playback state behaviour, use this table:
 ## Constraints
 
 - **`miniserver` feature** gates Loxone modules in [`src/main.rs`](src/main.rs); use `#[cfg(feature = "miniserver")]` for new Loxone-only code.
-- **No streaming services:** `getservices` / `getavailableservices` return `[]`; Qobuz-era commands (`servicecfg`, `isfollowed`, `queue/*`, `library/play`, …) are kept as routes that return empty stubs so the UI does not error.
+- **Qobuz through the speaker only:** `getservices` lists a virtual Spotify account for Qobuz ([`src/qobuz.rs`](src/qobuz.rs)) while a speaker that browses Qobuz (Naim) is bound; browse and play go through that speaker's `getRows` / `play` + `mediaRoles` ([docs/speakers/streamunlimited.md](docs/speakers/streamunlimited.md)). No Qobuz login or web API in the daemon. `getavailableservices` stays `[]`; other Qobuz-era commands (`servicecfg`, `isfollowed`, `queue/*`, …) are kept as routes that return empty stubs so the UI does not error.
 - **Do not commit:** `audioserver-config.json`, legacy `zone-config.json` / `qobuz-config.json`, tokens, `state.json`, `recents/`, `voice-uploads/`, audit logs.
 - **Minimal diffs:** match existing `tracing`, `IoCommand`, `build_wire_result_response` patterns.
 - **`getqueue`:** answered locally with an empty queue on both ports ([`build_getqueue_response`](src/remote/mod.rs)).

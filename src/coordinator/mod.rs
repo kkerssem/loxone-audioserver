@@ -8,6 +8,7 @@ mod browse;
 mod cast;
 mod config;
 mod diagnosis;
+mod qobuz;
 mod speaker;
 mod status;
 mod transport;
@@ -156,6 +157,41 @@ pub async fn run(
             IoCommand::GetMediaFolder(opts) => {
                 let result = browse::handle_get_media_folder(&opts.id, opts.start).await;
                 let _ = opts.sender.send(result);
+            }
+            IoCommand::GetServiceFolder {
+                service,
+                folder_id,
+                start,
+                max_items,
+                sender,
+            } if crate::qobuz::is_service(&service) => {
+                // Speaker HTTP runs off the loop, like the speakers' own poll tasks.
+                let backend = qobuz::browse_backend(&speaker_manager);
+                let cover_proxy_base = cover_proxy_base.clone();
+                tokio::spawn(async move {
+                    let result =
+                        qobuz::browse_folder(backend, &folder_id, start, max_items, &cover_proxy_base)
+                            .await;
+                    let _ = sender.send(result);
+                });
+            }
+            IoCommand::QobuzAvailable(reply) => {
+                let _ = reply.send(qobuz::browse_backend(&speaker_manager).is_some());
+            }
+            IoCommand::PlayServiceItem { player_id, id } => {
+                voice.note_transport(player_id);
+                qobuz::play_item(
+                    player_id,
+                    &id,
+                    &speaker_manager,
+                    &mut cast_manager,
+                    &mut registry,
+                    &zones,
+                    &mac_id,
+                    &cover_proxy_base,
+                    &events,
+                )
+                .await;
             }
             IoCommand::GetServiceFolder {
                 service,

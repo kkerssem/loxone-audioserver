@@ -3,6 +3,7 @@ compile_error!("build with --features miniserver (or use default features)");
 
 mod mdns_browse;
 mod player_state;
+mod qobuz;
 
 mod radio;
 

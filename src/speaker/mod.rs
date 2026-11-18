@@ -50,6 +50,12 @@ impl std::str::FromStr for SpeakerKind {
 }
 
 impl SpeakerKind {
+    /// Whether the speaker can browse and play Qobuz from its own login (`getRows qobuz:`).
+    /// Checked on a Naim Mu-so Qb 2; KEF not yet.
+    pub fn plays_qobuz(self) -> bool {
+        matches!(self, Self::NaimStream800)
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::KefStream800 => "kef_stream800",
@@ -95,6 +101,18 @@ pub struct SpeakerStatus {
     /// Live radio started from the speaker's own app that the speaker can play again from a
     /// description (a room favorite); `None` for anything else.
     pub station: Option<Arc<SpeakerStation>>,
+    /// The speaker's own path of the track that plays (StreamUnlimited `trackRoles.path`, e.g.
+    /// `qobuz:/track?id=…`); `""` if it has none.
+    pub track_path: String,
+}
+
+/// One page of a folder in a music service the speaker is logged into.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ServiceRows {
+    /// Items in the whole folder.
+    pub total: usize,
+    /// The speaker's rows for the page (StreamUnlimited `getRows`).
+    pub rows: Vec<serde_json::Value>,
 }
 
 /// A radio station as the speaker describes it, enough to play it again on that speaker.
@@ -142,6 +160,10 @@ pub enum SpeakerCommand {
     Seek(u32),
     /// Play a station the speaker described earlier (a room favorite's `mediaRoles`).
     PlayStation(Arc<serde_json::Value>),
+    /// Play an item of a music service the speaker is logged into (its `mediaRoles`).
+    PlayItem(Arc<serde_json::Value>),
+    /// Next (`true`) or previous track.
+    Skip(bool),
 }
 
 /// Local control API of one speaker.
@@ -164,6 +186,24 @@ pub trait SpeakerBackend: Send + Sync {
     async fn play_station(&self, media: &serde_json::Value) -> Result<()> {
         let _ = media;
         anyhow::bail!("this speaker cannot play a station description")
+    }
+
+    /// Play an item of a music service the speaker is logged into, from its `mediaRoles`.
+    async fn play_item(&self, media: &serde_json::Value) -> Result<()> {
+        let _ = media;
+        anyhow::bail!("this speaker cannot play music service items")
+    }
+
+    /// Next (`forward`) or previous track.
+    async fn skip(&self, forward: bool) -> Result<()> {
+        let _ = forward;
+        anyhow::bail!("skip not supported by this speaker")
+    }
+
+    /// One page (`start`, up to `count` rows) of a music service folder on the speaker.
+    async fn browse(&self, path: &str, start: usize, count: usize) -> Result<ServiceRows> {
+        let _ = (path, start, count);
+        anyhow::bail!("this speaker cannot browse music services")
     }
 
     /// How long a command may take; `None` uses the manager's poll timeout.
@@ -194,6 +234,8 @@ pub trait SpeakerBackend: Send + Sync {
             SpeakerCommand::Power(on) => self.power(on).await,
             SpeakerCommand::Seek(seconds) => self.seek(seconds).await,
             SpeakerCommand::PlayStation(media) => self.play_station(&media).await,
+            SpeakerCommand::PlayItem(media) => self.play_item(&media).await,
+            SpeakerCommand::Skip(forward) => self.skip(forward).await,
         }
     }
 }
@@ -215,6 +257,7 @@ pub(crate) mod fake {
     //! In-memory speaker for manager and coordinator tests.
 
     use super::*;
+    use anyhow::Context;
     use std::sync::Mutex;
 
     /// A connector that always hands out this fake (each test owns its own).
@@ -239,6 +282,8 @@ pub(crate) mod fake {
         pub fail_commands: Mutex<bool>,
         /// `interrupt` / `resume` calls (voice messages), in order.
         pub interruptions: Mutex<Vec<&'static str>>,
+        /// Music service folders by path, for `browse`.
+        pub folders: Mutex<std::collections::HashMap<String, ServiceRows>>,
     }
 
     impl FakeSpeaker {
@@ -284,7 +329,8 @@ pub(crate) mod fake {
                 SpeakerCommand::Pause => status.mode = Some(Mode::Pause),
                 SpeakerCommand::SetVolume(level) => status.volume = level,
                 SpeakerCommand::Seek(seconds) => status.position_s = i64::from(seconds),
-                SpeakerCommand::PlayStation(_) => {
+                SpeakerCommand::Skip(_) => {}
+                SpeakerCommand::PlayStation(_) | SpeakerCommand::PlayItem(_) => {
                     status.power = SpeakerPower::On;
                     status.mode = Some(Mode::Play);
                 }
@@ -333,6 +379,29 @@ pub(crate) mod fake {
         }
         async fn play_station(&self, media: &serde_json::Value) -> Result<()> {
             self.record(SpeakerCommand::PlayStation(Arc::new(media.clone())))
+        }
+        async fn play_item(&self, media: &serde_json::Value) -> Result<()> {
+            self.record(SpeakerCommand::PlayItem(Arc::new(media.clone())))
+        }
+        async fn skip(&self, forward: bool) -> Result<()> {
+            self.record(SpeakerCommand::Skip(forward))
+        }
+        async fn browse(&self, path: &str, start: usize, count: usize) -> Result<ServiceRows> {
+            self.check()?;
+            let folders = self.folders.lock().unwrap();
+            let folder = folders
+                .get(path)
+                .with_context(|| format!("no folder {path}"))?;
+            Ok(ServiceRows {
+                total: folder.total,
+                rows: folder
+                    .rows
+                    .iter()
+                    .skip(start)
+                    .take(count)
+                    .cloned()
+                    .collect(),
+            })
         }
         async fn interrupt(&self) -> Result<bool> {
             self.check()?;

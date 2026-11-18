@@ -238,6 +238,19 @@ impl SpeakerManager {
         Ok(())
     }
 
+    /// Backend of the bound speaker with the lowest zone id whose kind matches, for calls not
+    /// tied to a zone (browsing a music service).
+    pub fn first_backend(
+        &self,
+        matches: impl Fn(SpeakerKind) -> bool,
+    ) -> Option<Arc<dyn SpeakerBackend>> {
+        self.zones
+            .iter()
+            .filter(|(_, zone)| matches(zone.target.kind))
+            .min_by_key(|(player_id, _)| **player_id)
+            .map(|(_, zone)| Arc::clone(&zone.backend))
+    }
+
     /// Speaker API of the zone's bound speaker.
     pub fn kind(&self, player_id: usize) -> Option<SpeakerKind> {
         self.zones.get(&player_id).map(|z| z.target.kind)

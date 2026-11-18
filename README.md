@@ -1,6 +1,6 @@
 # Loxone Audioserver
 
-Software-only [Loxone Audioserver](https://www.loxone.com/) for LAN speakers. Loxone zones get transport, volume and now-playing from the speakers themselves; you pick what to play in each speaker's own app (or the streaming service's app). TuneIn and custom radio can be started from the Loxone App and are played through Google Cast.
+Software-only [Loxone Audioserver](https://www.loxone.com/) for LAN speakers. Loxone zones get transport, volume and now-playing from the speakers themselves; you pick what to play in each speaker's own app (or the streaming service's app). TuneIn and custom radio can be started from the Loxone App and are played through Google Cast. Qobuz can be browsed and played from the Loxone App through a Naim speaker that is logged into Qobuz.
 
 Runs as a single daemon: Miniserver pairing on port **7095**, Web UI on port **7091**, UDP discovery on **7070**.
 
@@ -81,9 +81,20 @@ Open the Web/App UI on the same LAN. Media commands may arrive on **`ws://<audio
 | UI area | Wire command | Behaviour |
 |---------|--------------|-----------|
 | **Radios** | `getradios`, `getservicefolder/local/…`, `globalsearch/tunein…` | TuneIn / custom streams, played via Cast |
-| **Music services** | `getservices` | Empty — start music from the speaker's app |
+| **Music services** | `getservices`, `getservicefolder/spotify/qobuz/…`, `serviceplay` | Qobuz (shown as a Spotify-type account), browsed and played through the zone's Naim speaker; see below |
 | **Queue panel** | `getqueue` | Empty |
 | **Library** (SD / NAS) | `getmediafolder/0` | **Not implemented** |
+
+### Qobuz in the Loxone App
+
+When a Naim Mu-so (2nd gen) that is logged into Qobuz in the Naim app is bound to a zone, the Loxone App shows a **Qobuz** music service. There is nothing to log into in the audioserver: browsing goes through that speaker's own Qobuz login.
+
+- **Browse:** Your Library (playlists, liked songs, albums, artists), new releases and featured playlists.
+- **Play:** an album, playlist or artist plays from the start on the zone's own speaker; a track on its own plays alone. A track tapped inside an album or playlist plays that album or playlist from the start: the speaker cannot start one at a given track.
+- **Skip buttons** move through the album or playlist.
+- Only zones whose speaker is a Naim can play Qobuz; KEF has not been checked yet. The queue panel stays empty.
+
+The Loxone App only knows Spotify-type music services, so Qobuz is presented as a Spotify account named Qobuz (as the earlier Qobuz Connect build did).
 
 ## Configuration
 

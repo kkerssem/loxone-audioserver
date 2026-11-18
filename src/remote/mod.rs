@@ -262,6 +262,13 @@ pub enum IoCommand {
     },
     /// `audio/cfg/diagnosis`: zones, speakers and Cast devices as the audioserver sees them.
     Diagnosis(oneshot::Sender<crate::coordinator::DiagnosisReport>),
+    /// Play a Qobuz item (`qobuz:album:…`, `qobuz:track:…`, …) on the zone's speaker.
+    PlayServiceItem {
+        player_id: Playerid,
+        id: String,
+    },
+    /// Whether a speaker that can browse Qobuz is bound (the music service is offered).
+    QobuzAvailable(oneshot::Sender<bool>),
     Players(PlayerNames),
     /// Seek target in seconds (KEF/Naim speakers via `seekTime`; Cast radio is live).
     Position(Playerid, i32),
@@ -436,7 +443,7 @@ fn retired_command_reply(
                 "isowner": false,
             }),
         ),
-        Command::LibraryPlay | Command::PlaylistPlay => ("play_result", json!([])),
+        Command::PlaylistPlay => ("play_result", json!([])),
         _ => return empty_stub_response(command),
     };
     build_wire_result_response(name, payload, Some(command), &[])
@@ -473,12 +480,12 @@ impl Api {
             Command::Authenticate => self.authenticate(command, &matched.params),
             Command::AuthenticateFalse => self.authenticate_false(command, &matched.params),
             Command::Diagnosis => self.diagnosis(command).await,
+            Command::LibraryPlay => self.library_play(command, &matched.params).await,
             Command::GetPlayLists
             | Command::ServiceCfgGetLink
             | Command::ServiceCfgAdd
             | Command::ServiceCfgDelete
             | Command::IsFollowed
-            | Command::LibraryPlay
             | Command::PlaylistPlay => {
                 retired_command_reply(matched.value, command, &matched.params)
             }
@@ -498,7 +505,7 @@ impl Api {
             Command::RoomFavDelete => self.room_fav_delete(command, &matched.params).await,
             Command::RoomFavSave => self.room_fav_save(command, &matched.params).await,
             Command::RoomFavSavePath => self.room_fav_save_path(command, &matched.params).await,
-            Command::GetServices => self.get_services(command),
+            Command::GetServices => self.get_services(command).await,
             Command::GetAvailableServices => self.get_available_services(command),
             Command::GetMac => self.get_mac(command),
             Command::GetEq => self.get_eq(command, &matched.params),
@@ -728,7 +735,7 @@ mod tests {
         let v = reply("audio/cfg/getplaylists2/lms/nouser/0/0/20");
         assert_eq!(v["getplaylists2_result"][0]["totalitems"], json!(0));
         assert_eq!(v["getplaylists2_result"][0]["items"], json!([]));
-        let v = reply("audio/3/library/play/qobuz:album:1/noshuffle");
+        let v = reply("audio/3/playlist/play/qobuz:track:1/noshuffle");
         assert_eq!(v["play_result"], json!([]));
     }
 
@@ -754,5 +761,80 @@ mod tests {
         )
         .unwrap();
         assert_eq!(first_wire_key(&getkey).as_deref(), Some("getkey_result"));
+    }
+
+    /// An `Api` whose coordinator side is the returned receiver.
+    fn api() -> (super::Api, tokio::sync::mpsc::Receiver<super::IoCommand>) {
+        let app_config = crate::AppConfig::new("504F94000002".into(), None, None, None).unwrap();
+        let (sender, receiver) = tokio::sync::mpsc::channel(8);
+        let (events, _) = tokio::sync::broadcast::channel(8);
+        let (outbound, _) = tokio::sync::mpsc::unbounded_channel();
+        (
+            super::Api::new(app_config, "t".into(), sender, events, outbound),
+            receiver,
+        )
+    }
+
+    async fn send(api: &super::Api, command: &str) -> serde_json::Value {
+        let reply = api.process_message(command.into()).await.unwrap();
+        match reply {
+            axum::extract::ws::Message::Text(text) => serde_json::from_str(text.as_str()).unwrap(),
+            other => panic!("unexpected reply {other:?}"),
+        }
+    }
+
+    fn played(command: Option<super::IoCommand>) -> (usize, String) {
+        match command {
+            Some(super::IoCommand::PlayServiceItem { player_id, id }) => (player_id.0, id),
+            other => panic!("expected a qobuz play, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn qobuz_items_from_every_play_route_reach_the_coordinator() {
+        let (api, mut rx) = api();
+        let v = send(
+            &api,
+            "audio/3/serviceplay/spotify/qobuz/qobuz:album:A1/?q&ZW5mb3JjZVVzZXI9dHJ1ZQ",
+        )
+        .await;
+        assert_eq!(v["serviceplay_result"], json!([]));
+        assert_eq!(played(rx.recv().await), (3, "qobuz:album:A1".into()));
+
+        send(&api, "audio/2/playurl/spotify:track:T1/noshuffle").await;
+        assert_eq!(played(rx.recv().await), (2, "qobuz:track:T1".into()));
+
+        let v = send(
+            &api,
+            "audio/4/library/play/qobuz:track:T2/parentid/qobuz:playlist:P1/3/noshuffle",
+        )
+        .await;
+        assert_eq!(v["play_result"], json!([]));
+        assert_eq!(played(rx.recv().await), (4, "qobuz:playlist:P1".into()));
+
+        send(&api, "audio/4/library/play/qobuz:album:A2").await;
+        assert_eq!(played(rx.recv().await), (4, "qobuz:album:A2".into()));
+
+        // Neither radio nor Qobuz: answered, nothing played.
+        send(&api, "audio/4/library/play/local:file:1").await;
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn the_qobuz_account_is_listed_while_a_speaker_can_browse_it() {
+        for available in [true, false] {
+            let (api, mut rx) = api();
+            tokio::spawn(async move {
+                if let Some(super::IoCommand::QobuzAvailable(reply)) = rx.recv().await {
+                    let _ = reply.send(available);
+                }
+            });
+            let v = send(&api, "audio/cfg/getservices").await;
+            let services = v["getservices_result"].as_array().unwrap();
+            assert_eq!(services.len(), usize::from(available));
+            if available {
+                assert_eq!(services[0]["uid"], "spotify/qobuz");
+            }
+        }
     }
 }
