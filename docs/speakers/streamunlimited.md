@@ -29,7 +29,7 @@ Every path is a typed node, like `player:volume` or `settings:/mediaPlayer/mute`
 | Verb | Form | Notes |
 |------|------|-------|
 | Read a value | `GET /api/getData?path=<path>&roles=value` | Answers a one-element array with the value, or `{"error":{"message":…}}` |
-| Read a folder | `GET /api/getRows?path=<path>&roles=@all&from=<n>&to=<m>` | Answers `{"roles":{…}, "rows":[…], "rowsCount":n}`. Fails (HTTP 500) on leaf nodes and unknown roots |
+| Read a folder | `GET /api/getRows?path=<path>&roles=@all&from=<n>&to=<m>` | Answers `{"roles":{…}, "rows":[…], "rowsCount":n}`. **`to` is inclusive**: `from=0&to=3` returns four rows. Fails (HTTP 500) on leaf nodes and unknown roots |
 | Write / act | `POST /api/setData` with body `{"path":…,"role":"value"\|"activate","value":…}` | `role: "value"` writes a setting; `role: "activate"` runs a control. A JSON body with `error` means it failed |
 
 Typed values are objects with a type tag: `{"type":"i32_","i32_":42}`, `{"type":"bool_","bool_":true}`. Other tags seen: `i64_`, `double_`, `string_`, `kefPhysicalSource`.
@@ -141,7 +141,10 @@ Folder trees of the services the speaker is logged into. Checked on the Mu-so (2
 | Root | Result |
 |------|--------|
 | `qobuz:` | `roles.title` "Qobuz root", with rows: Discover (`qobuz:/featured/`), My Playlists (`qobuz:/user/playlists/`), Favourites (`qobuz:/user/favourites/`), Purchases (`qobuz:/user/purchases/`), Search (`qobuz:/search/node`, `type: "query"`). `roles.search` describes `qobuz:searchContainer` |
-| `qobuz:/featured/` | Albums, Artists, Playlists |
+| `qobuz:/featured/` | Albums (`featured/albums`, 100), Artists (100), Playlists (`featured/playlists`, 1024) |
+| `qobuz:/artist?id=<id>` | The artist's albums |
+| `qobuz:/user/purchases/` | Tracks, Albums |
+| `qobuz:/search/{artists,albums,tracks,playlists}?query=<text>` | Search results of that kind (`rowsCount` capped at 1000). `qobuz:/search/node?query=…` returns artists only; without a `query` the speaker answers HTTP 500 "Missing parameter" |
 | `qobuz:/user/favourites/` | Tracks (`containerType: "playlist"`, playable as a whole), Albums, Artists |
 | `playlists:pq/getitems` | The Naim play queue (filled by Naim favourites and the Naim app) |
 | `vtuner:` | Empty, with `rowsRedirect: "vtuner:loginPage/55"` |
@@ -158,6 +161,8 @@ Row shape:
 | `containerPlayable` | `true` when the whole container can be played |
 | `mediaData.metaData` | Artist, album, `serviceID` |
 
+Row `path` forms: `qobuz:/album?id=…`, `qobuz:/playlist?id=…`, `qobuz:/track?id=…`, `qobuz:/artist?id=…` (`containerType: "person"`).
+
 Playing (all via `play` + the row as `mediaRoles`, Mu-so 2026-11-18):
 
 | Row | Result |
@@ -166,7 +171,11 @@ Playing (all via `play` + the row as `mediaRoles`, Mu-so 2026-11-18):
 | Track inside an album | Plays that track only, as a one-track queue: `next` stays on it |
 | Single track (e.g. favourite tracks) | Plays that track |
 
-These plays do not show up in the Naim play queue (`playlists:pq/getitems`). Search (`qobuz:/search/node`) was not tried.
+These plays do not show up in the Naim play queue (`playlists:pq/getitems`).
+
+A minimal `mediaRoles` is enough for containers: `{"type":"container","path":"qobuz:/album?id=…","containerPlayable":true}` plays an album or playlist. A track needs more: `{"type":"audio","path":…}` alone stops the player; with `mediaData.metaData.prePlayPath` (`qobuz:/preplay?id=…`) and `serviceID: "qobuz"` it plays, but reports no title unless the `mediaRoles` carries `title` (Mu-so, 2026-11-18).
+
+While a browsed item plays, `trackRoles.path` is the track (`qobuz:/track?id=…`) and `mediaRoles.path` the album or playlist that was started.
 
 ## KEF: input and power
 

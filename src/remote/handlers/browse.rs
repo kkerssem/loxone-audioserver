@@ -179,6 +179,7 @@ impl Api {
         build_wire_result_response(
             "globalsearch_result",
             json!({
+                "spotify@qobuz": crate::qobuz::SEARCH_KINDS,
                 "tunein": ["station", "custom"],
             }),
             Some(command),
@@ -233,6 +234,19 @@ impl Api {
             total_items: 0,
         });
         let user = params.get("user").unwrap_or("nouser").to_string();
+        if crate::qobuz::is_service(&service_tag) {
+            // The "show more" list of a Qobuz category (as the earlier Qobuz bridge answered).
+            let payload = json!([{
+                "results": [{
+                    "where": crate::qobuz::SERVICE_CMD,
+                    "user": crate::qobuz::SERVICE_USER,
+                    "tag": browse.id,
+                    "totalitems": browse.total_items,
+                    "items": browse.items,
+                }]
+            }]);
+            return build_wire_result_response("search_reply_result", payload, Some(command), &[]);
+        }
         let payload = crate::radio::build_radio_search_wire_payload(&browse, &user);
         build_wire_result_response("search_result", payload, Some(command), &[])
     }
@@ -304,9 +318,17 @@ impl Api {
         rest: &str,
         result_name: &str,
     ) -> anyhow::Result<String> {
-        // Only radio can be started from Loxone; other content gets the normal empty reply.
         let Some(id) = crate::radio::parse_serviceplay_item_id(rest) else {
-            debug!(path = rest, "play ignored: not a radio audiopath");
+            if let Some(id) = crate::qobuz::play_target(rest) {
+                self.sender
+                    .send(IoCommand::PlayServiceItem {
+                        player_id: playerid,
+                        id,
+                    })
+                    .await?;
+            } else {
+                debug!(path = rest, "play ignored: not a radio or qobuz item");
+            }
             return build_wire_result_response(result_name, json!([]), Some(command), &[]);
         };
         let opts = PlayOpts {
@@ -317,6 +339,36 @@ impl Api {
             .send(IoCommand::Play(playerid, Some(opts)))
             .await?;
         build_wire_result_response(result_name, json!([]), Some(command), &[])
+    }
+
+    /// `audio/{playerid}/library/play/{id}[/…]`: the App's play button on a service item.
+    pub(in crate::remote) async fn library_play(
+        &self,
+        command: &str,
+        params: &Params<'_, '_>,
+    ) -> anyhow::Result<String> {
+        let playerid: Playerid = params
+            .get("playerid")
+            .context("Missing parameter playerid")?
+            .parse()?;
+        let id = params.get("id").context("Missing parameter id")?;
+        // A track inside an album or playlist (`parentid`) plays that container.
+        let target = params
+            .get("parentid")
+            .and_then(crate::qobuz::play_target)
+            .or_else(|| crate::qobuz::play_target(id));
+        match target {
+            Some(id) => {
+                self.sender
+                    .send(IoCommand::PlayServiceItem {
+                        player_id: playerid,
+                        id,
+                    })
+                    .await?
+            }
+            None => debug!(id = %id, "library play ignored: not a qobuz item"),
+        }
+        build_wire_result_response("play_result", json!([]), Some(command), &[])
     }
 
     pub(in crate::remote) async fn service_play(

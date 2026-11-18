@@ -31,7 +31,8 @@ use tracing::{debug, warn};
 use crate::player_state::Mode;
 
 use super::{
-    SpeakerBackend, SpeakerPower, SpeakerStation, SpeakerStatus, STATION_AUDIOPATH_PREFIX,
+    ServiceRows, SpeakerBackend, SpeakerPower, SpeakerStation, SpeakerStatus,
+    STATION_AUDIOPATH_PREFIX,
 };
 
 const PATH_PLAYER_DATA: &str = "player:player/data";
@@ -164,6 +165,31 @@ impl Stream800 {
             bail!("setData {path}: {err}");
         }
         Ok(())
+    }
+
+    /// One page of a folder: `getRows` answers `{"rows":[…],"rowsCount":n}`. Its `to` is
+    /// inclusive (`from=0&to=3` returns four rows; Mu-so Qb 2, 2026-11-18).
+    async fn get_rows(&self, path: &str, start: usize, count: usize) -> Result<ServiceRows> {
+        if count == 0 {
+            return Ok(ServiceRows::default());
+        }
+        let url = format!("http://{}/api/getRows", self.host);
+        let body: Value = self
+            .http
+            .get(&url)
+            .query(&[
+                ("path", path),
+                ("roles", "@all"),
+                ("from", &start.to_string()),
+                ("to", &(start + count - 1).to_string()),
+            ])
+            .send()
+            .await
+            .with_context(|| format!("getRows {path}"))?
+            .json()
+            .await
+            .with_context(|| format!("getRows {path}: invalid json"))?;
+        parse_rows(path, body)
     }
 
     async fn naim_power(&self) -> Result<Value> {
@@ -461,6 +487,28 @@ fn stopped_station_as_paused(
     })
 }
 
+/// A `getRows` reply as a page of rows. Errors come back as `{"error":{"message":…}}`.
+fn parse_rows(path: &str, body: Value) -> Result<ServiceRows> {
+    if let Some(err) = body.get("error") {
+        let message = err
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown error");
+        bail!("getRows {path}: {message}");
+    }
+    let rows = body
+        .get("rows")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let total = body
+        .get("rowsCount")
+        .and_then(Value::as_u64)
+        .map(|n| n as usize)
+        .unwrap_or(rows.len());
+    Ok(ServiceRows { total, rows })
+}
+
 /// Player state after sending `action` towards `want_playing`.
 fn state_after(action: &str, want_playing: bool) -> &'static str {
     match (action, want_playing) {
@@ -684,6 +732,7 @@ pub fn parse_status(
         live: is_live(player_data),
         play_session: play_session(player_data),
         station: station(player_data),
+        track_path: str_at(player_data, "/trackRoles/path").to_string(),
     }
 }
 
@@ -808,6 +857,38 @@ impl SpeakerBackend for Stream800 {
     /// muted speaker as volume 0, so raising the volume must make it audible.
     async fn play_station(&self, media: &Value) -> Result<()> {
         self.replay_stream(media.clone()).await
+    }
+
+    /// Play an item (a `getRows` row or a description built from its path). Whether it pauses
+    /// is read from the speaker on the next pause.
+    async fn play_item(&self, media: &Value) -> Result<()> {
+        self.set_data(
+            PATH_PLAYER_CONTROL,
+            "activate",
+            json!({ "control": "play", "mediaRoles": media }),
+        )
+        .await?;
+        self.remember("playing", None);
+        Ok(())
+    }
+
+    /// Naim: `/nowplaying?cmd=next|prev` (port 80 `next_` / `previous` answer but do nothing on
+    /// a Qobuz album, Mu-so 2026-11-18). Not checked on KEF yet.
+    async fn skip(&self, forward: bool) -> Result<()> {
+        if self.vendor != Vendor::Naim {
+            bail!("skip not supported on KEF yet");
+        }
+        let url = format!("{}/nowplaying", self.naim_base);
+        let cmd = if forward { "next" } else { "prev" };
+        let response = self.http.get(&url).query(&[("cmd", cmd)]).send().await?;
+        if !response.status().is_success() {
+            bail!("naim {cmd}: http {}", response.status());
+        }
+        Ok(())
+    }
+
+    async fn browse(&self, path: &str, start: usize, count: usize) -> Result<ServiceRows> {
+        self.get_rows(path, start, count).await
     }
 
     async fn seek(&self, seconds: u32) -> Result<()> {
@@ -1511,6 +1592,72 @@ mod tests {
                     "canResume {can_resume}"
                 );
             }
+        }
+
+        /// `getRows`: the `rows:<path>` entry, paged by `from` / `to` (inclusive, like the
+        /// speaker), or the speaker's error.
+        async fn get_rows(
+            State(fake): State<Fake>,
+            Query(q): Query<HashMap<String, String>>,
+        ) -> Json<Value> {
+            let path = q.get("path").cloned().unwrap_or_default();
+            let from: usize = q.get("from").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let to: usize = q.get("to").and_then(|v| v.parse().ok()).unwrap_or(0);
+            Json(match fake.data.get(&format!("rows:{path}")) {
+                Some(Value::Array(rows)) => json!({
+                    "rows": rows.iter().skip(from).take(to + 1 - from).collect::<Vec<_>>(),
+                    "rowsCount": rows.len(),
+                }),
+                _ => json!({"error": {"message": format!("Node at path '{path}' does not exist")}}),
+            })
+        }
+
+        #[tokio::test]
+        async fn qobuz_browse_play_and_skip_over_http() {
+            let tracks: Vec<Value> = (1..=5)
+                .map(|i| json!({"type": "audio", "path": format!("qobuz:/track?id={i}"), "title": format!("T{i}")}))
+                .collect();
+            let (fake, router) = getdata_router(&fake_with(&[(
+                "rows:qobuz:/user/favourites/tracks",
+                json!(tracks),
+            )]));
+            let addr = serve(
+                fake.clone(),
+                router
+                    .route("/api/getRows", get(get_rows))
+                    .route("/nowplaying", get(naim_now_playing)),
+            )
+            .await;
+            let speaker = naim_on(&addr);
+
+            let page = speaker
+                .browse("qobuz:/user/favourites/tracks", 1, 2)
+                .await
+                .unwrap();
+            assert_eq!(page.total, 5);
+            let titles: Vec<&str> = page
+                .rows
+                .iter()
+                .map(|r| r["title"].as_str().unwrap())
+                .collect();
+            assert_eq!(titles, ["T2", "T3"]);
+            let missing = speaker.browse("qobuz:/nope", 0, 5).await.unwrap_err();
+            assert!(missing.to_string().contains("does not exist"));
+
+            let album = json!({"type": "container", "path": "qobuz:/album?id=A1", "containerPlayable": true});
+            speaker.play_item(&album).await.unwrap();
+            speaker.skip(true).await.unwrap();
+            speaker.skip(false).await.unwrap();
+            let writes = fake.writes.lock().unwrap().clone();
+            assert_eq!(
+                writes[0]["value"],
+                json!({"control": "play", "mediaRoles": album})
+            );
+            assert_eq!(writes[1], json!({"naim_cmd": "next"}));
+            assert_eq!(writes[2], json!({"naim_cmd": "prev"}));
+
+            let kef = Stream800::new(&addr, Vendor::Kef);
+            assert!(kef.skip(true).await.is_err(), "not checked on KEF yet");
         }
 
         fn controls_sent(fake: &Fake) -> Vec<Value> {

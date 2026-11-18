@@ -142,6 +142,7 @@ impl BeoState {
             play_session: self.play_session.clone(),
             // B&O radio is not replayed from a description yet.
             station: None,
+            track_path: String::new(),
         }
     }
 }

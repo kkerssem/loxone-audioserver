@@ -6,7 +6,7 @@ Reference for WebSocket traffic between the **Loxone app / Web UI** (remote cont
 
 Miniserver pairing (7095) is documented in [`miniserver-protocol.md`](miniserver-protocol.md).
 
-> **Qobuz removed (Nov 2026):** sections below that describe Qobuz browse, the virtual Spotify bridge, `servicecfg` login and the queue panel document the earlier Qobuz Connect build. Today `getservices` / `getavailableservices` return `[]`, `getqueue` returns an empty queue, and the Qobuz-only commands (`servicecfg/*`, `isfollowed`, `getplaylists2`, `library/play`, `playlist/play`, `queue/play|remove|move`, `diagnosis`) return empty stubs. Radio, room favorites, EQ and transport sections still apply. The wire shapes are kept here as reference for future service integrations.
+> **Qobuz Connect removed (Nov 2026), Qobuz back through the speaker:** sections below that describe Qobuz browse via the Qobuz API, `servicecfg` login and the queue panel document the earlier Qobuz Connect build. Today the virtual Spotify account comes back while a Naim speaker logged into Qobuz is bound, and browse and play go through that speaker: see [Qobuz through the speaker](#qobuz-through-the-speaker). `getavailableservices` returns `[]`, `getqueue` returns an empty queue, and `servicecfg/*`, `isfollowed`, `getplaylists2`, `playlist/play` and `queue/play|remove|move` return empty stubs. Radio, room favorites, EQ and transport sections still apply.
 
 **Dual-path caveat:** This document reflects [`trace.txt`](../reference/loxone-ui/trace.txt) (7091 bootstrap and browse). In a captured session with Loxone mobile + desktop, **7091 and 7095 were both active** — not either/or. Full matrix: [traffic-paths.md](traffic-paths.md). Play/skip on **7095**: [miniserver-protocol.md — Zone transport](miniserver-protocol.md#zone-transport-commands-7095).
 
@@ -625,7 +625,7 @@ The UI listens for these and refetches `getservices`.
 
 | Implementation | Behavior |
 |----------------|----------|
-| **Current** | Empty list `[]` — no streaming accounts are advertised. Until Nov 2026 a logged-in Qobuz account appeared as one virtual Spotify entry as above (same bridge pattern as Apple Music / Tidal in [lox-audioserver](https://github.com/lox-audioserver/lox-audioserver)). |
+| **Current** | One virtual Spotify entry for Qobuz (`user:"qobuz"`, no `email`) while a speaker that browses Qobuz is bound, else `[]` ([`qobuz::service_entry`](../src/qobuz.rs)). Same bridge pattern as Apple Music / Tidal in [lox-audioserver](https://github.com/lox-audioserver/lox-audioserver). |
 | **Reference** | `spotifyServiceManager.listServiceEntries()` (real Spotify + bridge accounts) |
 | **UI scripts** | **Confirmed** — `Commands.SERVICES.GET` → `audio/cfg/getservices`; client runs `_createUidForService` (`uid = cmd + "/" + user`) |
 
@@ -913,6 +913,45 @@ command="audio/cfg/storage/add/eyJuYW1lIjoibXVzaWMgKDE5Mi4xNjguMTAuMjMzKSIs..."
 The stub uses the last path segment for the result key, so add-with-base64 replies use a `{base64}_result` field name rather than `storage_result`.
 
 Use **Qobuz** (Music service tab) for streaming catalog browse; do not expect the **Library** tab to index files from a NAS on this audioserver.
+
+---
+
+### Qobuz through the speaker
+
+Qobuz is browsed and played through a speaker logged into Qobuz (a Naim Mu-so 2nd gen), using its `getRows qobuz:` tree and `play` + `mediaRoles` ([speaker API](speakers/streamunlimited.md#browsing-getrows)). Implementation: [`src/qobuz.rs`](../src/qobuz.rs) (pure mapping) and [`src/coordinator/qobuz.rs`](../src/coordinator/qobuz.rs).
+
+| Wire command | Behaviour |
+|--------------|-----------|
+| `audio/cfg/getservices` | Virtual account `{"cmd":"spotify","id":"qobuz","user":"qobuz","uid":"spotify/qobuz","provider":"qobuz","fake":true,…}` while such a speaker is bound |
+| `audio/cfg/getservicefolder/spotify/qobuz/{folder}/{start}/{max}` (and the shorter forms, `searchdetails`) | One page of the speaker's tree (below) |
+| `audio/{id}/serviceplay/…`, `audio/{id}/playurl/…`, `audio/{id}/library/play/{id}[…]` | `IoCommand::PlayServiceItem` on the zone's own speaker (must be one that plays Qobuz) |
+| `audio/cfg/globalsearch/describe` | Adds `"spotify@qobuz": ["track","album","artist","playlist"]` |
+| `audio/cfg/globalsearch/spotify@qobuz:{kind#n,…}/{query}` | Broadcast `globalsearch_result` (`type:"spotify"`): `tracks`/`albums`/`artists`/`playlists` with `count`, `totalitems` and `link` `audio/cfg/search/spotify/qobuz/{kind}/{query}/0/50`; empty `shows`/`episodes`; `topresults`; `user:"qobuz"`; hits other than tracks are type 12 with `cmd`/`user`/`uid`/`fake`/`provider` and a nested `service` |
+| `audio/cfg/search/spotify/qobuz/{kind}/{query}/{start}/{max}` | `search_reply_result: [{"results":[{"where":"spotify","user":"qobuz","tag":kind,"totalitems","items"}]}]`; item ids use the `spotify:` prefix |
+| `audio/{id}/roomfav/play/{fav}` | A favorite with a `qobuz:` / `spotify:` item audiopath plays like `serviceplay`; its title and cover are sent along for a track |
+| `audio/{id}/queueplus`, `queueminus` (skip buttons) | Naim `/nowplaying?cmd=next\|prev` while a track list plays; nothing on other speakers |
+
+**Folder ids.** The root (`start`, `noUser`, …) answers empty: the App builds the Spotify start page from fixed ids.
+
+| Loxone id | Speaker path | Name |
+|-----------|--------------|------|
+| `0` | `qobuz:/featured/playlists` | Playlists |
+| `1` | `qobuz:/featured/albums` | New Releases |
+| `3` | `qobuz:/user/playlists/` | Playlists |
+| `4` | `qobuz:/user/favourites/tracks` | Liked Songs |
+| `5` | `qobuz:/user/favourites/albums` | Albums |
+| `6` | `qobuz:/user/favourites/artists` | Artists |
+| `2`, `7` | (genres, podcasts) | empty |
+| `qobuz:{album\|playlist\|track\|artist}:<id>` | `qobuz:/<kind>?id=<id>` | |
+| `qobuz:folder:<base64url>` | any other speaker folder | |
+
+The App sends item ids back as `qobuz:…`, `spotify:…` or `spotify@qobuz:…`; all normalize to `qobuz:<kind>:<id>`.
+
+**Items.** Albums and playlists are type 7 (open and play as a whole), artists type 12, tracks type 2 (`name` "Title — Artist"), other folders type 1. Covers go through the cors-proxy.
+
+**Search.** The speaker's `qobuz:/search/{tracks,albums,artists,playlists}?query=…` folders, one request per category, asked at once. The speaker does not decode the query inside its path, so it goes in raw, with `&`, `#`, `?`, `=` and `+` turned into spaces.
+
+**Playing.** An album, playlist or artist plays from `{"type":"container","path":…,"containerPlayable":true}`. A track needs `mediaData.metaData.prePlayPath` (`qobuz:/preplay?id=…`) and shows no title unless the `mediaRoles` carries one, so tracks seen while browsing are remembered. A track tapped inside an album or playlist (`parentpath` / `parentid`) plays that container from the start. Cast radio on the zone is stopped first. While a Qobuz track plays, the zone's `audiopath` is `qobuz:track:<id>`.
 
 ---
 

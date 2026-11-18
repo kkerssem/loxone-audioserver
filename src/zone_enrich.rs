@@ -4,6 +4,16 @@ use crate::loxone_config::LoxoneRuntimeState;
 use crate::player_state::{enrich_for_loxone_ui, PlayerState, Playerid};
 use crate::zone_equalizer::{bands_to_settings_string, get_bands};
 
+/// `url` through the 7091 cors-proxy at `base`; `id` names the cover (the album, or `x`).
+pub fn proxied_cover_url(base: &str, url: &str, id: &str) -> String {
+    format!(
+        "{}/cors-proxy?url={}&id={}",
+        base,
+        urlencoding::encode(url),
+        urlencoding::encode(id)
+    )
+}
+
 /// Rewrite HTTPS cover URLs through the 7091 cors-proxy when configured.
 pub fn apply_cover_proxy(state: &mut PlayerState, base: Option<&str>) {
     let Some(base) = base else {
@@ -20,13 +30,7 @@ pub fn apply_cover_proxy(state: &mut PlayerState, base: Option<&str>) {
     } else {
         state.album.clone()
     };
-    let url = state.cover_url.clone();
-    state.cover_url = format!(
-        "{}/cors-proxy?url={}&id={}",
-        base,
-        urlencoding::encode(&url),
-        urlencoding::encode(&id)
-    );
+    state.cover_url = proxied_cover_url(base, &state.cover_url, &id);
     // The App only reloads a cover whose URL changed; `v` (ignored by the proxy) makes a
     // restarted stream with the same icon a new URL.
     if !state.cover_revision.is_empty() {

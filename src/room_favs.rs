@@ -72,6 +72,16 @@ pub async fn resolve_favorite_metadata(audiopath: &str) -> FavoriteMetadata {
         }
     }
 
+    // A Qobuz item seen while browsing or playing (no Qobuz lookup of our own).
+    if let Some(info) = crate::qobuz::known_item(&normalized) {
+        return FavoriteMetadata {
+            title: info.title,
+            artist: info.artist,
+            album: info.album,
+            coverurl: info.cover_url,
+        };
+    }
+
     if let Some(id) = normalized.strip_prefix("custom:station:") {
         let store = crate::radio::CustomRadioStore::new(None);
         if let Ok(stations) = store.list().await {

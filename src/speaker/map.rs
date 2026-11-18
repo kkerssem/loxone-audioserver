@@ -98,6 +98,9 @@ pub fn status_to_player_state(playerid: Playerid, status: &SpeakerStatus) -> Pla
     // Radio from the speaker's own app gets an audiopath, so it can be a room favorite.
     if let Some(station) = &status.station {
         state.audiopath = station.audiopath.clone();
+    } else if let Some(track) = crate::qobuz::track_audiopath(&status.track_path) {
+        // A Qobuz track the speaker plays from its own Qobuz login: playable again by id.
+        state.audiopath = track;
     }
     // Same convention as Cast radio (`radio::build_radio_player_state`): station mirrors title.
     state.station = if status.live {
@@ -145,6 +148,14 @@ mod tests {
         assert_eq!(
             status_to_player_state(Playerid(2), &playing()).audiopath,
             ""
+        );
+        let qobuz = SpeakerStatus {
+            track_path: "qobuz:/track?id=2531160".into(),
+            ..playing()
+        };
+        assert_eq!(
+            status_to_player_state(Playerid(2), &qobuz).audiopath,
+            "qobuz:track:2531160"
         );
     }
 

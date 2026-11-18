@@ -252,13 +252,31 @@ impl Api {
             .context("invalid favorite id")?;
         let fav = room_favs::lookup(playerid.0, favorite_id)
             .with_context(|| format!("favorite {favorite_id} not found"))?;
-        let command_for_fav = match fav.speaker_media {
-            Some(media) => IoCommand::PlaySpeakerStation {
+        let qobuz_item = crate::qobuz::normalize_id(&fav.audiopath)
+            .filter(|id| crate::qobuz::item_kind(id).is_some());
+        let command_for_fav = match (fav.speaker_media, qobuz_item) {
+            (Some(media), _) => IoCommand::PlaySpeakerStation {
                 player_id: playerid,
                 kind: fav.speaker_kind,
                 media,
             },
-            None => IoCommand::Play(
+            (None, Some(id)) => {
+                // A track shows its title only if its description carries it.
+                crate::qobuz::remember_item(
+                    &id,
+                    crate::qobuz::ItemInfo {
+                        title: fav.title.clone(),
+                        artist: fav.artist.clone(),
+                        album: fav.album.clone(),
+                        cover_url: crate::qobuz::unproxied_cover(&fav.coverurl),
+                    },
+                );
+                IoCommand::PlayServiceItem {
+                    player_id: playerid,
+                    id,
+                }
+            }
+            (None, None) => IoCommand::Play(
                 playerid,
                 Some(PlayOpts {
                     id: audiopath_for_playback(&fav.audiopath),

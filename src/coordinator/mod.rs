@@ -8,6 +8,7 @@ mod browse;
 mod cast;
 mod config;
 mod diagnosis;
+mod qobuz;
 mod speaker;
 mod status;
 mod transport;
@@ -163,6 +164,41 @@ pub async fn run(
                 start,
                 max_items,
                 sender,
+            } if crate::qobuz::is_service(&service) => {
+                // Speaker HTTP runs off the loop, like the speakers' own poll tasks.
+                let backend = qobuz::browse_backend(&speaker_manager);
+                let cover_proxy_base = cover_proxy_base.clone();
+                tokio::spawn(async move {
+                    let result =
+                        qobuz::browse_folder(backend, &folder_id, start, max_items, &cover_proxy_base)
+                            .await;
+                    let _ = sender.send(result);
+                });
+            }
+            IoCommand::QobuzAvailable(reply) => {
+                let _ = reply.send(qobuz::browse_backend(&speaker_manager).is_some());
+            }
+            IoCommand::PlayServiceItem { player_id, id } => {
+                voice.note_transport(player_id);
+                qobuz::play_item(
+                    player_id,
+                    &id,
+                    &speaker_manager,
+                    &mut cast_manager,
+                    &mut registry,
+                    &zones,
+                    &mac_id,
+                    &cover_proxy_base,
+                    &events,
+                )
+                .await;
+            }
+            IoCommand::GetServiceFolder {
+                service,
+                folder_id,
+                start,
+                max_items,
+                sender,
             } => {
                 let result = browse::handle_get_service_folder(
                     &service,
@@ -172,6 +208,43 @@ pub async fn run(
                 )
                 .await;
                 let _ = sender.send(result);
+            }
+            IoCommand::GlobalSearch {
+                provider_spec,
+                query,
+                sender,
+            } if crate::qobuz::is_search_provider(&provider_spec) => {
+                let backend = qobuz::browse_backend(&speaker_manager);
+                let cover_proxy_base = cover_proxy_base.clone();
+                tokio::spawn(async move {
+                    let result =
+                        qobuz::global_search(backend, &provider_spec, &query, &cover_proxy_base)
+                            .await;
+                    let _ = sender.send(result);
+                });
+            }
+            IoCommand::SearchCategory {
+                service,
+                kind,
+                query,
+                start,
+                max_items,
+                sender,
+            } if crate::qobuz::is_service(&service) => {
+                let backend = qobuz::browse_backend(&speaker_manager);
+                let cover_proxy_base = cover_proxy_base.clone();
+                tokio::spawn(async move {
+                    let result = qobuz::search_category(
+                        backend,
+                        &kind,
+                        &query,
+                        start,
+                        max_items,
+                        &cover_proxy_base,
+                    )
+                    .await;
+                    let _ = sender.send(result);
+                });
             }
             IoCommand::GlobalSearch {
                 provider_spec,
