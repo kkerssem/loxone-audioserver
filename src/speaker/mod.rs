@@ -56,6 +56,11 @@ impl SpeakerKind {
         matches!(self, Self::NaimStream800)
     }
 
+    /// Whether the backend has next / previous track (Naim `/nowplaying?cmd=next|prev`).
+    pub fn can_skip(self) -> bool {
+        matches!(self, Self::NaimStream800)
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::KefStream800 => "kef_stream800",

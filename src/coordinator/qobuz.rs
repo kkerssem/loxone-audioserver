@@ -39,6 +39,21 @@ fn empty(folder_id: &str, name: &str, start: usize) -> BrowseResult {
     }
 }
 
+/// Speaker rows of a page starting at `start` as Loxone items (slots count from 1, covers
+/// through the cors-proxy); the rows' items are remembered for playing and saving by id.
+fn page_items(
+    rows: &[serde_json::Value],
+    start: usize,
+    cover_proxy_base: &str,
+) -> Vec<crate::remote::BrowseResultItem> {
+    qobuz::remember_rows(rows);
+    let cover = |url: &str| proxied_cover_url(cover_proxy_base, url, "x");
+    rows.iter()
+        .enumerate()
+        .map(|(i, row)| qobuz::browse_item(row, start + i + 1, &cover))
+        .collect()
+}
+
 /// One page of a Loxone folder id, read from the speaker. Failures answer an empty folder.
 pub(crate) async fn browse_folder(
     backend: Option<Arc<dyn SpeakerBackend>>,
@@ -51,11 +66,6 @@ pub(crate) async fn browse_folder(
         Folder::Speaker { path, name } => (path, name),
         Folder::Root | Folder::Empty => return empty(folder_id, "", start),
     };
-    // The start page prefetches "Your playlists" with a small page for a carousel, and asks
-    // again with a larger page for the library view (as the earlier Qobuz bridge answered).
-    if folder_id == "3" && start == 0 && max_items <= 20 {
-        return empty(folder_id, name, start);
-    }
     let Some(backend) = backend else {
         warn!(folder = %folder_id, "qobuz browse: no speaker logged into qobuz is bound");
         return empty(folder_id, name, start);
@@ -67,17 +77,9 @@ pub(crate) async fn browse_folder(
             return empty(folder_id, name, start);
         }
     };
-    qobuz::remember_rows(&page.rows);
-    let cover = |url: &str| proxied_cover_url(cover_proxy_base, url, "x");
-    let items = page
-        .rows
-        .iter()
-        .enumerate()
-        .map(|(i, row)| qobuz::browse_item(row, start + i + 1, &cover))
-        .collect();
     BrowseResult {
         total_items: page.total,
-        items,
+        items: page_items(&page.rows, start, cover_proxy_base),
         ..empty(folder_id, name, start)
     }
 }
@@ -95,19 +97,9 @@ async fn search_page(
         return (0, vec![]);
     };
     match backend.browse(&path, start, count).await {
-        Ok(page) => {
-            qobuz::remember_rows(&page.rows);
-            let cover = |url: &str| proxied_cover_url(cover_proxy_base, url, "x");
-            let items = page
-                .rows
-                .iter()
-                .enumerate()
-                .map(|(i, row)| qobuz::browse_item(row, start + i + 1, &cover))
-                .collect();
-            (page.total, items)
-        }
+        Ok(page) => (page.total, page_items(&page.rows, start, cover_proxy_base)),
         Err(e) => {
-            warn!(kind, error = %e, "qobuz search failed");
+            warn!(kind = %kind, error = %e, "qobuz search failed");
             (0, vec![])
         }
     }
@@ -263,7 +255,7 @@ pub(crate) async fn play_item(
     let commands = match plan_play_item(manager.kind(playerid.0), last.as_ref(), id) {
         Ok(commands) => commands,
         Err(reason) => {
-            warn!(player_id = playerid.0, item = %id, reason, "qobuz item not played");
+            warn!(player_id = playerid.0, item = %id, reason = %reason, "qobuz item not played");
             return;
         }
     };
@@ -336,11 +328,14 @@ mod tests {
             assert_eq!(result.id, id);
         }
         assert!(browse_folder(None, "5", 0, 50, "b").await.items.is_empty());
-        // The start page's small "Your playlists" prefetch.
-        assert!(browse_folder(Some(backend), "3", 0, 20, "b")
-            .await
-            .items
-            .is_empty());
+        // A small first page is a real page.
+        assert_eq!(
+            browse_folder(Some(backend), "5", 0, 2, "b")
+                .await
+                .items
+                .len(),
+            2
+        );
     }
 
     #[test]

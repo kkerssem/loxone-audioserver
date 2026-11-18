@@ -140,8 +140,8 @@ pub fn item_kind(id: &str) -> Option<&'static str> {
 /// Audiopath of the track that plays, from the speaker's `trackRoles.path`
 /// (`qobuz:/track?id=X` → `qobuz:track:X`).
 pub fn track_audiopath(track_path: &str) -> Option<String> {
-    let id = track_path.strip_prefix("qobuz:/track?id=")?;
-    (!id.is_empty() && !id.contains(['&', '/'])).then(|| format!("qobuz:track:{id}"))
+    let id = loxone_id(track_path);
+    (item_kind(&id) == Some("track")).then_some(id)
 }
 
 /// What an item shows: for a track, what its `mediaRoles` carries while it plays (the speaker
@@ -173,6 +173,36 @@ pub fn remember_item(id: &str, info: ItemInfo) {
         items.clear();
     }
     items.insert(id, info);
+}
+
+/// Remember what the track that plays shows. Called for every status publish (the position
+/// changes each second), so an entry that already says the same is left alone, without cloning.
+pub fn remember_playing(track_path: &str, title: &str, artist: &str, album: &str, cover_url: &str) {
+    let Some(id) = track_audiopath(track_path) else {
+        return;
+    };
+    if title.is_empty() {
+        return;
+    }
+    if let Ok(items) = ITEMS.lock() {
+        if items.get(&id).is_some_and(|known| {
+            known.title == title
+                && known.artist == artist
+                && known.album == album
+                && known.cover_url == cover_url
+        }) {
+            return;
+        }
+    }
+    remember_item(
+        &id,
+        ItemInfo {
+            title: title.to_string(),
+            artist: artist.to_string(),
+            album: album.to_string(),
+            cover_url: cover_url.to_string(),
+        },
+    );
 }
 
 /// Remember the catalogue items among browsed rows.
@@ -387,7 +417,11 @@ pub fn search_limits(spec: &str) -> Vec<(&'static str, usize)> {
 }
 
 /// Speaker search folder for a Loxone search category; `None` for categories Qobuz lacks.
-/// The query goes into the path as is: the whole path is URL-encoded on the request.
+///
+/// The speaker splits the path's own `?query=` part without decoding it (Mu-so Qb 2,
+/// 2026-11-18): `abbey%20road` finds nothing, and `rock & roll` is cut at the `&`. So the
+/// query goes in raw, with the characters that would end or change it (`&`, `#`, `?`, `=`,
+/// `+`) turned into spaces.
 pub fn search_path(kind: &str, query: &str) -> Option<String> {
     let folder = match kind {
         "track" | "tracks" => "tracks",
@@ -396,6 +430,19 @@ pub fn search_path(kind: &str, query: &str) -> Option<String> {
         "playlist" | "playlists" => "playlists",
         _ => return None,
     };
+    let query: String = query
+        .chars()
+        .map(|c| {
+            if matches!(c, '&' | '#' | '?' | '=' | '+') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     Some(format!("qobuz:/search/{folder}?query={query}"))
 }
 
@@ -656,6 +703,22 @@ mod tests {
             known_item("qobuz:album:990002").unwrap().title,
             "Pornography"
         );
+        remember_playing(
+            "qobuz:/track?id=990004",
+            "Charlotte Sometimes",
+            "The Cure",
+            "",
+            "",
+        );
+        assert_eq!(known_item("qobuz:track:990004").unwrap().artist, "The Cure");
+        remember_playing(
+            "qobuz:/track?id=990004",
+            "Charlotte Sometimes",
+            "The Cure",
+            "",
+            "",
+        );
+        remember_playing("vtuner:x", "Radio", "", "", "");
         remember_item("qobuz:album:990003", ItemInfo::default());
         assert_eq!(known_item("qobuz:album:990003"), None, "nothing to show");
     }
@@ -694,6 +757,14 @@ mod tests {
         assert_eq!(
             search_path("album", "abbey road").as_deref(),
             Some("qobuz:/search/albums?query=abbey road")
+        );
+        assert_eq!(
+            search_path("track", "rock & roll").as_deref(),
+            Some("qobuz:/search/tracks?query=rock roll")
+        );
+        assert_eq!(
+            search_path("track", "a=b#c?d+e").as_deref(),
+            Some("qobuz:/search/tracks?query=a b c d e")
         );
         assert_eq!(search_path("show", "x"), None);
     }

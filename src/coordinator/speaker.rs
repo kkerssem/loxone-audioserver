@@ -15,7 +15,7 @@ use crate::{
         binding::{auto_bind_by_name, is_bound, resolve_targets, ZoneSpeakerTarget},
         discovery::remember,
         map::status_to_player_state,
-        DiscoveredSpeaker, SpeakerCommand, SpeakerEvent, SpeakerManager, SpeakerPower,
+        DiscoveredSpeaker, SpeakerCommand, SpeakerEvent, SpeakerKind, SpeakerManager, SpeakerPower,
         SpeakerStation, SpeakerStatus,
     },
     zone_enrich::enrich_zone_state,
@@ -216,17 +216,13 @@ pub(crate) fn publish_speaker_status(
     }
     // A Qobuz track that plays: remember what it shows, so replaying it from recents or a
     // favorite shows its title.
-    if let Some(id) = crate::qobuz::track_audiopath(&status.track_path) {
-        crate::qobuz::remember_item(
-            &id,
-            crate::qobuz::ItemInfo {
-                title: status.title.clone(),
-                artist: status.artist.clone(),
-                album: status.album.clone(),
-                cover_url: status.cover_url.clone(),
-            },
-        );
-    }
+    crate::qobuz::remember_playing(
+        &status.track_path,
+        &status.title,
+        &status.artist,
+        &status.album,
+        &status.cover_url,
+    );
     if status.power == SpeakerPower::On {
         let stored = zone_volume::get(playerid);
         if stored.is_none_or(|v| v.level != status.volume || v.muted != status.muted) {
@@ -259,6 +255,7 @@ pub(crate) fn publish_speaker_status(
 /// pull small steps back to the current level, so the button would do nothing.
 pub(crate) fn plan_speaker_commands(
     cmd: &IoCommand,
+    kind: Option<SpeakerKind>,
     last: Option<&SpeakerStatus>,
     fallback_volume: u8,
     max_volume: u8,
@@ -302,7 +299,12 @@ pub(crate) fn plan_speaker_commands(
         },
         // Next / previous track of what plays (an album, a playlist); live radio has none.
         IoCommand::QueuePlus(_) | IoCommand::QueueMinus(_) => match last {
-            Some(s) if s.power == SpeakerPower::On && s.mode.is_some() && !s.live => {
+            Some(s)
+                if kind.is_some_and(SpeakerKind::can_skip)
+                    && s.power == SpeakerPower::On
+                    && s.mode.is_some()
+                    && !s.live =>
+            {
                 vec![SpeakerCommand::Skip(matches!(cmd, IoCommand::QueuePlus(_)))]
             }
             _ => Vec::new(),
@@ -328,7 +330,8 @@ pub(crate) fn run_speaker_transport(cmd: &IoCommand, playerid: Playerid, manager
         .and_then(|m| m.loxone_max_volume)
         .unwrap_or(100)
         .clamp(1, 100);
-    let commands = plan_speaker_commands(cmd, last.as_ref(), fallback, max_volume, |level| {
+    let kind = manager.kind(playerid.0);
+    let commands = plan_speaker_commands(cmd, kind, last.as_ref(), fallback, max_volume, |level| {
         mapping
             .as_ref()
             .map(|m| zone_volume::clamp_volume_to_preset(level, m))
@@ -543,7 +546,14 @@ mod tests {
 
     /// Presets used by most tests: max volume 80, no step grid.
     fn plan(cmd: IoCommand, last: Option<SpeakerStatus>) -> Vec<SpeakerCommand> {
-        plan_speaker_commands(&cmd, last.as_ref(), 50, 80, |v| v.min(80))
+        plan_speaker_commands(
+            &cmd,
+            Some(SpeakerKind::NaimStream800),
+            last.as_ref(),
+            50,
+            80,
+            |v| v.min(80),
+        )
     }
 
     #[test]
@@ -605,7 +615,8 @@ mod tests {
         // Volume step preset 5: absolute levels snap to the grid, small relative steps still
         // move the volume instead of rounding back to the current level.
         let grid5 = |v: u8| ((f32::from(v) / 5.0).round() * 5.0) as u8;
-        let plan5 = |cmd: IoCommand| plan_speaker_commands(&cmd, Some(&on(40)), 50, 100, grid5);
+        let plan5 =
+            |cmd: IoCommand| plan_speaker_commands(&cmd, None, Some(&on(40)), 50, 100, grid5);
         assert_eq!(
             plan5(IoCommand::Volume(Playerid(1), VolumeStep::Delta(1))),
             vec![SpeakerCommand::SetVolume(41)]
@@ -707,6 +718,17 @@ mod tests {
         };
         assert!(plan(IoCommand::QueuePlus(Playerid(1)), Some(idle)).is_empty());
         assert!(plan(IoCommand::QueuePlus(Playerid(1)), None).is_empty());
+        for kind in [SpeakerKind::KefStream800, SpeakerKind::Beo] {
+            let planned = plan_speaker_commands(
+                &IoCommand::QueuePlus(Playerid(1)),
+                Some(kind),
+                Some(&on(1)),
+                50,
+                80,
+                |v| v,
+            );
+            assert!(planned.is_empty(), "{kind:?} has no skip");
+        }
     }
 
     #[test]

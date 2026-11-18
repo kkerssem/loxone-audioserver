@@ -238,16 +238,30 @@ impl SpeakerManager {
         Ok(())
     }
 
-    /// Backend of the bound speaker with the lowest zone id whose kind matches, for calls not
-    /// tied to a zone (browsing a music service).
+    /// Backend of a bound speaker whose kind matches, for calls not tied to a zone (browsing a
+    /// music service): one whose last poll found it on, else any that is not known to be
+    /// unreachable, else any; the lowest zone id among equals.
     pub fn first_backend(
         &self,
         matches: impl Fn(SpeakerKind) -> bool,
     ) -> Option<Arc<dyn SpeakerBackend>> {
+        let rank = |zone: &ZoneSpeaker| {
+            let last = zone
+                .shared
+                .last
+                .lock()
+                .ok()
+                .and_then(|l| l.as_ref().map(|s| s.power));
+            match last {
+                Some(SpeakerPower::On) => 0,
+                Some(SpeakerPower::Unreachable) => 2,
+                _ => 1,
+            }
+        };
         self.zones
             .iter()
             .filter(|(_, zone)| matches(zone.target.kind))
-            .min_by_key(|(player_id, _)| **player_id)
+            .min_by_key(|(player_id, zone)| (rank(zone), **player_id))
             .map(|(_, zone)| Arc::clone(&zone.backend))
     }
 
@@ -516,6 +530,39 @@ mod tests {
                 return status;
             }
         }
+    }
+
+    #[tokio::test]
+    async fn the_zone_free_backend_prefers_a_speaker_that_is_on() {
+        let asleep = FakeSpeaker::with_status(SpeakerStatus {
+            power: SpeakerPower::Standby,
+            ..Default::default()
+        });
+        let awake = FakeSpeaker::with_status(SpeakerStatus::default());
+        let (tx, mut rx) = mpsc::channel(32);
+        let (a, b) = (Arc::clone(&asleep), Arc::clone(&awake));
+        let connector: Connector = Arc::new(move |_, host: &str| {
+            let fake = if host == "asleep" { &a } else { &b };
+            Some(Arc::clone(fake) as Arc<dyn SpeakerBackend>)
+        });
+        let mut manager = SpeakerManager::with_connector(tx, connector, fast());
+        let naim = |player_id, host: &str| ZoneSpeakerTarget {
+            player_id,
+            speaker_id: host.into(),
+            kind: SpeakerKind::NaimStream800,
+            host: host.into(),
+        };
+        manager.sync(&[naim(1, "asleep"), naim(2, "awake")]);
+        next_status(&mut rx).await;
+        next_status(&mut rx).await;
+
+        let backend = manager.first_backend(SpeakerKind::plays_qobuz).unwrap();
+        backend.status().await.unwrap();
+        assert!(Arc::ptr_eq(
+            &backend,
+            &(Arc::clone(&awake) as Arc<dyn SpeakerBackend>)
+        ));
+        assert!(manager.first_backend(|_| false).is_none());
     }
 
     #[tokio::test]

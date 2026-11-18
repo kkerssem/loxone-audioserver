@@ -366,7 +366,7 @@ impl Api {
                     })
                     .await?
             }
-            None => debug!(id, "library play ignored: not a qobuz item"),
+            None => debug!(id = %id, "library play ignored: not a qobuz item"),
         }
         build_wire_result_response("play_result", json!([]), Some(command), &[])
     }

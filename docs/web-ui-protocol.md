@@ -929,7 +929,7 @@ Qobuz is browsed and played through a speaker logged into Qobuz (a Naim Mu-so 2n
 | `audio/cfg/globalsearch/spotify@qobuz:{kind#n,…}/{query}` | Broadcast `globalsearch_result` (`type:"spotify"`): `tracks`/`albums`/`artists`/`playlists` with `count`, `totalitems` and `link` `audio/cfg/search/spotify/qobuz/{kind}/{query}/0/50`; empty `shows`/`episodes`; `topresults`; `user:"qobuz"`; hits other than tracks are type 12 with `cmd`/`user`/`uid`/`fake`/`provider` and a nested `service` |
 | `audio/cfg/search/spotify/qobuz/{kind}/{query}/{start}/{max}` | `search_reply_result: [{"results":[{"where":"spotify","user":"qobuz","tag":kind,"totalitems","items"}]}]`; item ids use the `spotify:` prefix |
 | `audio/{id}/roomfav/play/{fav}` | A favorite with a `qobuz:` / `spotify:` item audiopath plays like `serviceplay`; its title and cover are sent along for a track |
-| `audio/{id}/queueplus`, `queueminus` (skip buttons) | Naim `/nowplaying?cmd=next\|prev` while a track list plays |
+| `audio/{id}/queueplus`, `queueminus` (skip buttons) | Naim `/nowplaying?cmd=next\|prev` while a track list plays; nothing on other speakers |
 
 **Folder ids.** The root (`start`, `noUser`, …) answers empty: the App builds the Spotify start page from fixed ids.
 
@@ -937,7 +937,7 @@ Qobuz is browsed and played through a speaker logged into Qobuz (a Naim Mu-so 2n
 |-----------|--------------|------|
 | `0` | `qobuz:/featured/playlists` | Playlists |
 | `1` | `qobuz:/featured/albums` | New Releases |
-| `3` | `qobuz:/user/playlists/` (empty for `start=0`, `max<=20`: the start-page prefetch) | Playlists |
+| `3` | `qobuz:/user/playlists/` | Playlists |
 | `4` | `qobuz:/user/favourites/tracks` | Liked Songs |
 | `5` | `qobuz:/user/favourites/albums` | Albums |
 | `6` | `qobuz:/user/favourites/artists` | Artists |
@@ -949,7 +949,7 @@ The App sends item ids back as `qobuz:…`, `spotify:…` or `spotify@qobuz:…`
 
 **Items.** Albums and playlists are type 7 (open and play as a whole), artists type 12, tracks type 2 (`name` "Title — Artist"), other folders type 1. Covers go through the cors-proxy.
 
-**Search.** The speaker's `qobuz:/search/{tracks,albums,artists,playlists}?query=…` folders, one request per category, asked at once.
+**Search.** The speaker's `qobuz:/search/{tracks,albums,artists,playlists}?query=…` folders, one request per category, asked at once. The speaker does not decode the query inside its path, so it goes in raw, with `&`, `#`, `?`, `=` and `+` turned into spaces.
 
 **Playing.** An album, playlist or artist plays from `{"type":"container","path":…,"containerPlayable":true}`. A track needs `mediaData.metaData.prePlayPath` (`qobuz:/preplay?id=…`) and shows no title unless the `mediaRoles` carries one, so tracks seen while browsing are remembered. A track tapped inside an album or playlist (`parentpath` / `parentid`) plays that container from the start. Cast radio on the zone is stopped first. While a Qobuz track plays, the zone's `audiopath` is `qobuz:track:<id>`.
 
