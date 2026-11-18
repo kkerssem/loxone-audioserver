@@ -16,8 +16,12 @@ mod sync;
 #[cfg(feature = "miniserver")]
 pub use announce::{play_announcement, Announcement};
 #[cfg(feature = "miniserver")]
+pub use device::CastDeviceInfo;
+#[cfg(feature = "miniserver")]
+pub use id::cast_device_ids_match;
+#[cfg(feature = "miniserver")]
 pub use manager::CastPlaybackManager;
 #[cfg(feature = "miniserver")]
-pub use matcher::warm_known_cast_devices;
+pub use matcher::{known_cast_devices, warm_known_cast_devices};
 #[cfg(feature = "miniserver")]
 pub use sync::CastRemoteUpdate;

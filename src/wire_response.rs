@@ -1,6 +1,7 @@
 //! Manual JSON wire responses with `*_result` before `command` (Loxone UI convention).
 
 use anyhow::Result;
+use serde::Serialize;
 use serde_json::Value;
 
 /// Build a wire JSON object with `{result_key}` first, then optional extras, then `command`.
@@ -9,7 +10,7 @@ use serde_json::Value;
 /// still emits `"command"` first unless built manually.
 pub fn build_wire_result_response(
     result_key: &str,
-    payload: Value,
+    payload: impl Serialize,
     command: Option<&str>,
     extra: &[(&str, Value)],
 ) -> Result<String> {

@@ -210,6 +210,9 @@ See [docs/architecture.md](docs/architecture.md).
 
 ## Troubleshooting
 
+**Start with the diagnosis page**
+In the Loxone App, open the Audioserver's settings and choose *Diagnosis information*. It lists each zone with its bound speaker and Cast device and what plays now, the speakers and Cast devices that no zone uses, and under `problems` what keeps a zone from working, with the setting to change in `audioserver-config.json`.
+
 **Transport has no effect**
 Only zones with a working backend respond: a Cast radio session started from Loxone, or a bound speaker. Other zones log `transport ignored: no backend for zone` at debug level; bound first-generation KEF speakers log `no backend for speaker kind yet`.
 

@@ -18,7 +18,7 @@ See also [traffic-paths.md](traffic-paths.md) and [architecture.md](architecture
 
 | Path / concern | 7091 (`remote`) | 7095 (`miniserver`) | Share reply builder? |
 |----------------|-----------------|---------------------|----------------------|
-| `audio/cfg/diagnosis` | Empty stub | `not_implemented` | **No** — different behaviour |
+| `audio/cfg/diagnosis` | Zone/speaker/Cast report | `not_implemented` | **No** — different behaviour |
 | `audio/cfg/identify` | mac + services list | `audio/cfg/identify/off` → `off_result` | **No** — different routes and shapes |
 | `audio/cfg/reboot` | `not_implemented` | `not_implemented` | **Yes** — `not_implemented_reply` |
 | `audio/cfg/getroomfavs/...` | Paged empty favs (`handlers/bootstrap.rs`) | `getroomfavs/all` static stub | **Partial** — same empty list idea, different paths |

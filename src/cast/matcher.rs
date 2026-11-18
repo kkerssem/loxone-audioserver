@@ -44,6 +44,14 @@ pub fn known_cast_device(player_id: usize) -> Option<CastDeviceInfo> {
     find_device(&known, &configured_id)
 }
 
+/// Every Cast device found by the last browse.
+pub fn known_cast_devices() -> Vec<CastDeviceInfo> {
+    KNOWN_DEVICES
+        .lock()
+        .map(|known| known.clone())
+        .unwrap_or_default()
+}
+
 /// Drop the remembered devices, so the next lookup browses again (e.g. after an address change).
 pub fn forget_known_cast_devices() {
     if let Ok(mut known) = KNOWN_DEVICES.lock() {

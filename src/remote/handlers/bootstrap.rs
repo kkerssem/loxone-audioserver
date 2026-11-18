@@ -181,6 +181,17 @@ impl Api {
         build_wire_result_response("getavailableservices_result", json!([]), Some(command), &[])
     }
 
+    pub(in crate::remote) async fn diagnosis(&self, command: &str) -> anyhow::Result<String> {
+        /*
+         * Command: audio/cfg/diagnosis
+         * The Loxone App shows `diagnosis_result` (an object) as indented JSON text.
+         */
+        let (reply, rx) = oneshot::channel();
+        self.sender.send(IoCommand::Diagnosis(reply)).await?;
+        let report = rx.await.context("diagnosis reply dropped")?;
+        build_wire_result_response("diagnosis_result", report, Some(command), &[])
+    }
+
     pub(in crate::remote) fn identify(&self, command: &str) -> anyhow::Result<String> {
         /*
          * Command: audio/cfg/identify

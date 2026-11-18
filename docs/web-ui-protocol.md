@@ -920,42 +920,48 @@ Use **Qobuz** (Music service tab) for streaming catalog browse; do not expect th
 
 | | |
 |--|--|
-| **Request** | Plain command, no parameters |
-| **Response** | `diagnosis_result`: **JSON object** (not a string — the Loxone UI Zod schema validates `z.object({}).passthrough()` and pretty-prints the object for display) |
+| **Request** | Plain command, no parameters (7091) |
+| **Response** | `diagnosis_result`: **JSON object** |
+| **Handler** | [`Api::diagnosis`](../src/remote/handlers/bootstrap.rs) → `IoCommand::Diagnosis` → [`coordinator/diagnosis.rs`](../src/coordinator/diagnosis.rs) |
 
-Example shape:
+How the Loxone App shows it (`DiagnosisSchema` / `DiagnosticsScreen`, Settings → Audioserver → Diagnosis information):
+
+- The schema accepts only an object (`z.object({}).passthrough()`); a string, number or array fails validation and the screen shows "connection failed" with *Try again*.
+- The object is shown as `JSON.stringify(…, null, 2)` in one plain-text table cell. There is no other formatting: no Markdown or HTML, and `\n` inside a string shows literally. Structure comes only from nested objects and arrays; keys show in the order sent, so the report is serialized from structs (not `serde_json::Value`, which sorts keys).
+
+Example:
 
 ```json
 {
-  "command": "audio/cfg/diagnosis",
   "diagnosis_result": {
-    "audioserver": { "version": "0.1.0", "serial": "504F94FF1BB3" },
-    "qobuz": { "logged_in": true, "email": "you@example.com" },
-    "connect_renderers": [
-      { "renderer_id": 33, "name": "Mu-so Qb", "brand": "Naim Audio", "device_uuid": "375289c5-…", "active": false }
+    "audioserver": { "version": "0.1.0", "serial": "504F94000002", "loxone_config": "received" },
+    "problems": [
+      "zone 2 (Kitchen): no speaker bound; set speaker_id to one of unbound_speakers"
     ],
-    "loxone_players": [
-      { "player_id": 2, "name": "Mu-so Qb", "loxone_uuid": "…", "mapped": true, "qobuz_renderer_id": 33 }
+    "zones": [
+      {
+        "zone": 1,
+        "name": "Living",
+        "speaker": { "name": "Mu-so", "kind": "naim_stream800", "id": "…", "host": "10.0.0.20", "state": "on" },
+        "cast_device": { "id": "…", "name": "Mu-so", "found": true },
+        "playing": "playing from qobuz: Song - Artist"
+      },
+      { "zone": 2, "name": "Kitchen", "speaker": "not bound", "cast_device": "none (radio and voice messages need cast_device_id)", "playing": "nothing" }
     ],
-    "onboarding": "Name each Loxone player exactly like a Qobuz Connect speaker…"
-  }
+    "unbound_speakers": [ { "name": "LS60", "kind": "kef_stream800", "id": "…", "host": "10.0.0.21" } ],
+    "cast_devices": [ { "name": "Mu-so", "id": "…", "host": "10.0.0.20", "zone": 1 } ]
+  },
+  "command": "audio/cfg/diagnosis"
 }
 ```
 
 | Key | Content |
 |-----|---------|
-| `audioserver` | Version, serial, feature flags |
-| `qobuz` | `logged_in`, optional `email` |
-| `connect_renderers` | Live Connect session speakers (`renderer_id`, `name`, `brand`, `device_uuid`, `active`) |
-| `loxone_players` | Configured zones with mapping status and optional `issue` |
-| `onboarding` | Short name-matching instructions |
-
-Data sources: `zone-config.json`, `state.json`, and the shared playback-bridge Connect session when running. If Qobuz is not logged in or the bridge is down, renderers may be empty and `onboarding` explains next steps.
-
-| Implementation | Behavior |
-|----------------|----------|
-| **Current** | Empty `diagnosis_result: {}` ([`retired_command_reply`](../src/remote/mod.rs)); the Qobuz diagnosis payload was removed |
-| **Reference** | `configHandlers.diagnosis` → `DiagnosticsScreen` in Loxone App |
+| `audioserver` | Package version, serial, whether a Miniserver configuration was received |
+| `problems` | One line per issue, naming the zone and the fix: missing or undiscovered `speaker_id`, a `speaker_host` without `speaker_kind`, an unsupported speaker kind, a speaker not answering, a `cast_device_id` not found by the last browse, a Loxone zone missing from `audioserver-config.json` |
+| `zones` | Per `players[]` row: bound speaker (or `not bound` / `not found` / `misconfigured`), Cast device, what plays now |
+| `unbound_speakers` | Discovered speakers no zone controls (candidates for `speaker_id`) |
+| `cast_devices` | Cast devices from the last browse, with the zone that uses each |
 
 ---
 
