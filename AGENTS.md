@@ -79,6 +79,7 @@ When adding or changing playback state behaviour, use this table:
 | New **7091** command | [`src/remote/mod.rs`](src/remote/mod.rs) router + [`IoCommand`](src/remote/mod.rs) + [`src/coordinator/`](src/coordinator/) handler |
 | **7091 + 7095** transport / `getqueue` fallback | [`src/remote/mod.rs`](src/remote/mod.rs), [`src/miniserver/mod.rs`](src/miniserver/mod.rs), [`src/zone_transport.rs`](src/zone_transport.rs), [`src/coordinator/transport.rs`](src/coordinator/transport.rs) |
 | Radio / Cast playback | [`src/radio/`](src/radio/), [`src/cast/`](src/cast/), [docs/radio-cast.md](docs/radio-cast.md) |
+| Speaker control (KEF / Naim / B&O) | [`src/speaker/`](src/speaker/), [docs/speakers/](docs/speakers/README.md) — speaker API reference |
 | Wire format / UI expectations | [docs/web-ui-protocol.md](docs/web-ui-protocol.md) |
 | Zone ↔ Loxone mapping | [`src/config/mapping.rs`](src/config/mapping.rs) |
 | 7091 vs 7095 routing | [docs/traffic-paths.md](docs/traffic-paths.md) |

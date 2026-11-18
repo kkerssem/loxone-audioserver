@@ -7,6 +7,7 @@ Read order for contributors and coding agents:
 3. **[web-ui-protocol.md](web-ui-protocol.md)** — 7091 bootstrap, browse, transport
 4. **[miniserver-protocol.md](miniserver-protocol.md)** — 7095 pairing, `setconfig`, secure session
 5. **[radio-cast.md](radio-cast.md)** — TuneIn / custom radio over Google Cast
+6. **[speakers/](speakers/README.md)** — KEF, Naim and B&O speaker APIs the audioserver controls
 
 ## Deep dives
 
