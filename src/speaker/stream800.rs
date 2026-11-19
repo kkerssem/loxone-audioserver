@@ -730,6 +730,7 @@ pub fn parse_status(
         duration_s: (duration_ms / 1000) as u32,
         position_s: position_ms / 1000,
         live: is_live(player_data),
+        station_name: station_name(player_data),
         play_session: play_session(player_data),
         station: station(player_data),
         track_path: str_at(player_data, "/trackRoles/path").to_string(),
@@ -748,6 +749,16 @@ fn station(player_data: &Value) -> Option<std::sync::Arc<SpeakerStation>> {
         ),
         media,
     }))
+}
+
+/// Name of the live station that plays (`mediaRoles.title`); the track title of a radio stream
+/// is often the song (`"The The - Cognitive Dissident"`, airable on an LS60, 2026-11-19).
+fn station_name(player_data: &Value) -> String {
+    if is_live(player_data) {
+        str_at(player_data, "/mediaRoles/title").to_string()
+    } else {
+        String::new()
+    }
 }
 
 /// Track icon, if it is an http(s) URL.
@@ -1078,6 +1089,30 @@ mod tests {
             "https://media.focal-naim.com/app/images/stations/2822.png"
         );
         assert_eq!(muso.duration_s, 0, "duration -1 means unknown");
+    }
+
+    #[test]
+    fn live_radio_keeps_the_station_name_apart_from_the_song() {
+        let read = |data: &Value| {
+            parse_status(
+                SpeakerPower::On,
+                data,
+                &json!({"i32_": 40}),
+                None,
+                None,
+                Some("wifi"),
+            )
+        };
+        let mut song = first(fixture("ls60_airable"));
+        song["trackRoles"]["title"] = json!("The The - Cognitive Dissident");
+        let status = read(&song);
+        assert_eq!(status.title, "The The - Cognitive Dissident");
+        assert_eq!(status.station_name, "Radio Paradise Main Mix");
+
+        let mut track = song.clone();
+        track["trackRoles"]["mediaData"]["metaData"]["live"] = json!(false);
+        track["mediaRoles"]["mediaData"]["metaData"]["live"] = json!(false);
+        assert!(read(&track).station_name.is_empty(), "not radio");
     }
 
     #[test]
