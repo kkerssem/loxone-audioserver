@@ -25,7 +25,8 @@ pub enum SpeakerEvent {
     /// A zone's speaker reported a changed status.
     Status {
         player_id: usize,
-        status: SpeakerStatus,
+        /// Boxed: a status is far larger than the other variants.
+        status: Box<SpeakerStatus>,
     },
     /// A discovery pass found these speakers.
     Discovered(Vec<DiscoveredSpeaker>),
@@ -352,7 +353,10 @@ impl ZoneTask {
         !changed
             || self
                 .events
-                .send(SpeakerEvent::Status { player_id, status })
+                .send(SpeakerEvent::Status {
+                    player_id,
+                    status: Box::new(status),
+                })
                 .await
                 .is_ok()
     }
@@ -515,7 +519,7 @@ mod tests {
             .expect("speaker event")
             .expect("channel open")
         {
-            SpeakerEvent::Status { status, .. } => status,
+            SpeakerEvent::Status { status, .. } => *status,
             other => panic!("unexpected {other:?}"),
         }
     }
