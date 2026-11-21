@@ -50,6 +50,29 @@ const TOGGLE_SETTLE: Duration = Duration::from_secs(3);
 /// Re-reads of a transitional player state (e.g. buffering) before deciding on play/pause.
 const STATE_REREADS: u32 = 3;
 const STATE_REREAD_DELAY: Duration = Duration::from_millis(300);
+/// One request of a command. A sleeping speaker answers slowly (a Mu-so's port 15081 took 3 s
+/// on 2026-11-21), past the poll timeout, so a command waits longer.
+const COMMAND_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// How a stream play waits for a speaker it had to wake first.
+#[derive(Clone, Copy, Debug)]
+struct WakeTiming {
+    /// Longest wait for the woken speaker to report it is on and to take the play.
+    timeout: Duration,
+    /// Pause between checks and between play attempts.
+    retry: Duration,
+    /// How long the woken player may stay stopped before the play is sent once more: a play
+    /// sent while the speaker is still starting up can be accepted and then dropped.
+    play_check: Duration,
+}
+
+impl WakeTiming {
+    const DEFAULT: Self = Self {
+        timeout: Duration::from_secs(12),
+        retry: Duration::from_millis(750),
+        play_check: Duration::from_secs(4),
+    };
+}
 
 /// What play/pause needs to know about the player.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -112,6 +135,9 @@ pub struct Stream800 {
     /// Last poll that played a station from the speaker's own app, shown as paused once a
     /// pause has stopped it (see [`stopped_station_as_paused`]).
     last_station: Mutex<Option<SpeakerStatus>>,
+    /// Naim: power from the last `/power` lookup that answered, kept when a lookup fails.
+    naim_power_seen: Mutex<Option<SpeakerPower>>,
+    wake: WakeTiming,
 }
 
 impl Stream800 {
@@ -130,18 +156,33 @@ impl Stream800 {
             live_stream: Mutex::new(None),
             interrupted: Mutex::new(None),
             last_station: Mutex::new(None),
+            naim_power_seen: Mutex::new(None),
+            wake: WakeTiming::DEFAULT,
         }
     }
 
     async fn get_data(&self, path: &str) -> Result<Value> {
+        self.get_data_request(path, None).await
+    }
+
+    /// [`Self::get_data`] with a command's longer timeout.
+    async fn get_data_within(&self, path: &str, timeout: Duration) -> Result<Value> {
+        self.get_data_request(path, Some(timeout)).await
+    }
+
+    async fn get_data_request(&self, path: &str, timeout: Option<Duration>) -> Result<Value> {
         let url = format!("http://{}/api/getData", self.host);
-        let body: Value = self
+        let mut request = self
             .http
             .get(&url)
-            .query(&[("path", path), ("roles", "value")])
+            .query(&[("path", path), ("roles", "value")]);
+        if let Some(timeout) = timeout {
+            request = request.timeout(timeout);
+        }
+        let body: Value = request
             .send()
             .await
-            .with_context(|| format!("getData {path}"))?
+            .map_err(|e| request_error(&format!("getData {path}"), e))?
             .json()
             .await
             .with_context(|| format!("getData {path}: invalid json"))?;
@@ -153,10 +194,11 @@ impl Stream800 {
         let response = self
             .http
             .post(&url)
+            .timeout(COMMAND_REQUEST_TIMEOUT)
             .json(&json!({ "path": path, "role": role, "value": value }))
             .send()
             .await
-            .with_context(|| format!("setData {path}"))?;
+            .map_err(|e| request_error(&format!("setData {path}"), e))?;
         if !response.status().is_success() {
             bail!("setData {path}: http {}", response.status());
         }
@@ -192,9 +234,158 @@ impl Stream800 {
         parse_rows(path, body)
     }
 
-    async fn naim_power(&self) -> Result<Value> {
+    async fn naim_power(&self, timeout: Option<Duration>) -> Result<Value> {
         let url = format!("{}/power", self.naim_base);
-        Ok(self.http.get(&url).send().await?.json().await?)
+        let mut request = self.http.get(&url);
+        if let Some(timeout) = timeout {
+            request = request.timeout(timeout);
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|e| request_error("naim power lookup", e))?;
+        Ok(response.json().await?)
+    }
+
+    /// Whether the speaker is on, read with a command's patience (a sleeping Mu-so answers
+    /// its power lookup slowly).
+    async fn is_on(&self) -> Result<bool> {
+        match self.vendor {
+            Vendor::Kef => {
+                let source = self
+                    .get_data_within(PATH_KEF_SOURCE, COMMAND_REQUEST_TIMEOUT)
+                    .await?;
+                Ok(kef_power(&source) == SpeakerPower::On)
+            }
+            Vendor::Naim => {
+                let power = self.naim_power(Some(COMMAND_REQUEST_TIMEOUT)).await?;
+                Ok(naim_power(&power) == SpeakerPower::On)
+            }
+        }
+    }
+
+    /// Before playing a stream or a service item: wake the speaker straight into network
+    /// playback. A KEF on another input (TV, optical) is switched to Wi-Fi as well; waking it
+    /// with its last input would start that input instead. Returns whether it had to wake (or
+    /// switch input).
+    async fn wake_for_stream(&self) -> Result<bool> {
+        let woke = match self.vendor {
+            Vendor::Kef => {
+                let source = self
+                    .get_data_within(PATH_KEF_SOURCE, COMMAND_REQUEST_TIMEOUT)
+                    .await?;
+                // Also counts as a wake: right after an input switch the play can be dropped.
+                let switch = kef_physical_source(&source) != Some("wifi");
+                if switch {
+                    self.select_kef_source("wifi").await?;
+                }
+                switch
+            }
+            Vendor::Naim => {
+                let asleep = match self.naim_power(Some(COMMAND_REQUEST_TIMEOUT)).await {
+                    Ok(power) => naim_power(&power) != SpeakerPower::On,
+                    Err(e) => {
+                        // Waking an awake Naim does no harm; skipping the wake of a sleeping
+                        // one loses the play.
+                        debug!(host = %self.host, error = %e, "naim power lookup failed; waking anyway");
+                        true
+                    }
+                };
+                if asleep {
+                    if let Err(e) = self.set_naim_power(true).await {
+                        debug!(host = %self.host, error = %e, "naim wake failed; playing anyway");
+                    }
+                }
+                asleep
+            }
+        };
+        if !woke {
+            return Ok(false);
+        }
+        let deadline = Instant::now() + self.wake.timeout;
+        while Instant::now() < deadline {
+            if self.is_on().await.unwrap_or(false) {
+                return Ok(true);
+            }
+            tokio::time::sleep(self.wake.retry).await;
+        }
+        debug!(host = %self.host, "speaker not on after wake timeout");
+        Ok(true)
+    }
+
+    /// Wake the speaker if needed, then play `media`. A speaker that just woke may refuse the
+    /// play, or take it and drop it while it starts up: it is sent again until it plays or the
+    /// wake timeout passes.
+    async fn play_after_wake(&self, media: &Value) -> Result<()> {
+        let woke = self.wake_for_stream().await?;
+        let body = json!({ "control": "play", "mediaRoles": media });
+        if !woke {
+            return self.set_data(PATH_PLAYER_CONTROL, "activate", body).await;
+        }
+        let deadline = Instant::now() + self.wake.timeout;
+        loop {
+            match self
+                .set_data(PATH_PLAYER_CONTROL, "activate", body.clone())
+                .await
+            {
+                Ok(()) if self.starts_playing(deadline).await => return Ok(()),
+                Ok(()) => {}
+                Err(e) if Instant::now() >= deadline => return Err(e),
+                Err(e) => {
+                    debug!(host = %self.host, error = %e, "play after wake refused; retrying");
+                    tokio::time::sleep(self.wake.retry).await;
+                }
+            }
+            if Instant::now() >= deadline {
+                debug!(host = %self.host, "woken speaker did not start playing");
+                return Ok(());
+            }
+        }
+    }
+
+    /// Whether the player leaves `stopped` within [`WakeTiming::play_check`] (or `deadline`).
+    async fn starts_playing(&self, deadline: Instant) -> bool {
+        let until = deadline.min(Instant::now() + self.wake.play_check);
+        loop {
+            if let Ok(view) = self.player_view().await {
+                if matches!(
+                    view.state.as_str(),
+                    "playing" | "buffering" | "transitioning"
+                ) {
+                    return true;
+                }
+            }
+            if Instant::now() >= until {
+                return false;
+            }
+            tokio::time::sleep(self.wake.retry).await;
+        }
+    }
+
+    async fn select_kef_source(&self, source: &str) -> Result<()> {
+        self.set_data(
+            PATH_KEF_SOURCE,
+            "value",
+            json!({ "type": "kefPhysicalSource", "kefPhysicalSource": source }),
+        )
+        .await
+    }
+
+    async fn set_naim_power(&self, on: bool) -> Result<()> {
+        let system = if on { "on" } else { "lona" };
+        let url = format!("{}/power", self.naim_base);
+        let response = self
+            .http
+            .put(&url)
+            .timeout(COMMAND_REQUEST_TIMEOUT)
+            .query(&[("system", system)])
+            .send()
+            .await
+            .map_err(|e| request_error("naim power", e))?;
+        if !response.status().is_success() {
+            bail!("naim power: http {}", response.status());
+        }
+        Ok(())
     }
 
     async fn naim_now_playing(&self, url: &str) -> Result<Value> {
@@ -241,13 +432,19 @@ impl Stream800 {
                 }
                 Ok((kef_power(&source), input))
             }
-            Vendor::Naim => match self.naim_power().await {
-                Ok(power) => Ok((naim_power(&power), None)),
-                Err(e) => {
-                    debug!(host = %self.host, error = %e, "naim power lookup failed; assuming on");
-                    Ok((SpeakerPower::On, None))
+            Vendor::Naim => {
+                let mut seen = *self.naim_power_seen.lock().expect("power lock");
+                match self.naim_power(None).await {
+                    Ok(power) => seen = Some(naim_power(&power)),
+                    Err(e) => {
+                        // Keep what the last lookup said: assuming on would skip the wake of a
+                        // sleeping speaker, whose lookup is the one that is slow.
+                        debug!(host = %self.host, error = %e, "naim power lookup failed; keeping last state");
+                    }
                 }
-            },
+                *self.naim_power_seen.lock().expect("power lock") = seen;
+                Ok((seen.unwrap_or(SpeakerPower::On), None))
+            }
         }
     }
 
@@ -409,6 +606,13 @@ impl Stream800 {
             json!({ "control": "play", "mediaRoles": media.clone() }),
         )
         .await?;
+        self.keep_replayed_stream(media);
+        Ok(())
+    }
+
+    /// Keep a live stream just played from its `mediaRoles`, so a pause stops it and play
+    /// replays it.
+    fn keep_replayed_stream(&self, media: Value) {
         *self.live_stream.lock().expect("stream lock") = Some(LiveStream {
             media,
             session: None,
@@ -416,7 +620,6 @@ impl Stream800 {
         // The replayed stream is live radio: a pause right after must stop it, even before the
         // speaker reports it as live.
         self.remember("playing", Some(false));
-        Ok(())
     }
 
     /// Remember the station a poll plays, and show it as paused while the player reads as
@@ -648,6 +851,17 @@ pub fn naim_power(power: &Value) -> SpeakerPower {
     }
 }
 
+/// A failed request, saying so when it timed out (reqwest's own message only names the URL).
+fn request_error(what: &str, e: reqwest::Error) -> anyhow::Error {
+    if e.is_timeout() {
+        anyhow::anyhow!("{what}: timed out")
+    } else if e.is_connect() {
+        anyhow::anyhow!("{what}: cannot connect")
+    } else {
+        anyhow::Error::new(e).context(what.to_string())
+    }
+}
+
 /// Map a KEF physical input to the vendor-neutral source ids used by [`super::map`].
 fn normalize_kef_source(source: &str) -> &str {
     match source {
@@ -856,20 +1070,22 @@ impl SpeakerBackend for Stream800 {
     /// Set the level and, for a non-zero level on a muted speaker, unmute it: Loxone shows a
     /// muted speaker as volume 0, so raising the volume must make it audible.
     async fn play_station(&self, media: &Value) -> Result<()> {
-        self.replay_stream(media.clone()).await
+        self.play_after_wake(media).await?;
+        self.keep_replayed_stream(media.clone());
+        Ok(())
     }
 
     /// Play an item (a `getRows` row or a description built from its path). Whether it pauses
     /// is read from the speaker on the next pause.
     async fn play_item(&self, media: &Value) -> Result<()> {
-        self.set_data(
-            PATH_PLAYER_CONTROL,
-            "activate",
-            json!({ "control": "play", "mediaRoles": media }),
-        )
-        .await?;
+        self.play_after_wake(media).await?;
         self.remember("playing", None);
         Ok(())
+    }
+
+    /// Waking and retrying a play after it takes longer than a poll.
+    fn command_timeout(&self) -> Option<Duration> {
+        Some(self.wake.timeout * 2 + COMMAND_REQUEST_TIMEOUT * 3)
     }
 
     /// Naim: `/nowplaying?cmd=next|prev` (port 80 `next_` / `previous` answer but do nothing on
@@ -946,28 +1162,9 @@ impl SpeakerBackend for Stream800 {
                 } else {
                     "standby".to_string()
                 };
-                self.set_data(
-                    PATH_KEF_SOURCE,
-                    "value",
-                    json!({ "type": "kefPhysicalSource", "kefPhysicalSource": target }),
-                )
-                .await
+                self.select_kef_source(&target).await
             }
-            Vendor::Naim => {
-                let system = if on { "on" } else { "lona" };
-                let url = format!("{}/power", self.naim_base);
-                let response = self
-                    .http
-                    .put(&url)
-                    .query(&[("system", system)])
-                    .send()
-                    .await
-                    .context("naim power")?;
-                if !response.status().is_success() {
-                    bail!("naim power: http {}", response.status());
-                }
-                Ok(())
-            }
+            Vendor::Naim => self.set_naim_power(on).await,
         }
     }
 }
@@ -1435,7 +1632,157 @@ mod tests {
         fn naim_on(addr: &str) -> Stream800 {
             let mut speaker = Stream800::new(addr, Vendor::Naim);
             speaker.naim_base = format!("http://{addr}");
+            speaker.wake = QUICK_WAKE;
             speaker
+        }
+
+        fn kef_on(addr: &str) -> Stream800 {
+            let mut speaker = Stream800::new(addr, Vendor::Kef);
+            speaker.wake = QUICK_WAKE;
+            speaker
+        }
+
+        const QUICK_WAKE: WakeTiming = WakeTiming {
+            timeout: Duration::from_millis(400),
+            retry: Duration::from_millis(10),
+            play_check: Duration::from_millis(60),
+        };
+
+        fn plays(writes: &[Value]) -> usize {
+            writes
+                .iter()
+                .filter(|w| w["value"]["control"] == "play")
+                .count()
+        }
+
+        /// Naim `/power` that reads `lona` until a `PUT ?system=on` arrives.
+        async fn naim_power_wakes(State(fake): State<Fake>) -> Json<Value> {
+            let woken = fake
+                .writes
+                .lock()
+                .unwrap()
+                .contains(&json!({"naim_power": "on"}));
+            Json(json!({"system": if woken { "on" } else { "lona" }}))
+        }
+
+        #[tokio::test]
+        async fn a_station_wakes_a_sleeping_naim_before_it_plays() {
+            let (fake, router) = getdata_router(&fake_with(&[(
+                PATH_PLAYER_DATA,
+                json!({"state": "playing"}),
+            )]));
+            let addr = serve(
+                fake.clone(),
+                router.route("/power", get(naim_power_wakes).put(naim_power_put)),
+            )
+            .await;
+            let speaker = naim_on(&addr);
+            let station = json!({"type": "audio", "path": "vtuner:x"});
+            speaker.play_station(&station).await.unwrap();
+            let writes = fake.writes.lock().unwrap().clone();
+            assert_eq!(writes[0], json!({"naim_power": "on"}));
+            assert_eq!(
+                writes[1]["value"],
+                json!({"control": "play", "mediaRoles": station})
+            );
+            assert_eq!(writes.len(), 2, "played once: it plays straight away");
+            assert!(kept(&speaker).is_some(), "pause stops it, play replays it");
+        }
+
+        #[tokio::test]
+        async fn a_naim_whose_power_lookup_fails_is_woken_anyway() {
+            let (fake, router) = getdata_router(&fake_with(&[(
+                PATH_PLAYER_DATA,
+                json!({"state": "playing"}),
+            )]));
+            let addr = serve(
+                fake.clone(),
+                router.route("/power", axum::routing::put(naim_power_put)),
+            )
+            .await;
+            let speaker = naim_on(&addr);
+            speaker
+                .play_item(&json!({"path": "qobuz:/album?id=A1"}))
+                .await
+                .unwrap();
+            let writes = fake.writes.lock().unwrap().clone();
+            assert_eq!(writes[0], json!({"naim_power": "on"}));
+            assert_eq!(plays(&writes), 1);
+        }
+
+        #[tokio::test]
+        async fn a_kef_on_another_input_switches_to_wifi_for_a_station() {
+            let (fake, router) = getdata_router(&fake_with(&[
+                (
+                    PATH_KEF_SOURCE,
+                    json!({"type": "kefPhysicalSource", "kefPhysicalSource": "tv"}),
+                ),
+                (PATH_PLAYER_DATA, json!({"state": "playing"})),
+            ]));
+            let addr = serve(fake.clone(), router).await;
+            let speaker = kef_on(&addr);
+            let station = json!({"type": "audio", "path": "airable:x"});
+            speaker.play_station(&station).await.unwrap();
+            let writes = fake.writes.lock().unwrap().clone();
+            assert_eq!(
+                writes[0],
+                json!({"path": PATH_KEF_SOURCE, "role": "value",
+                       "value": {"type": "kefPhysicalSource", "kefPhysicalSource": "wifi"}})
+            );
+            assert_eq!(plays(&writes), 1);
+        }
+
+        #[tokio::test]
+        async fn a_play_dropped_by_a_waking_kef_is_sent_again() {
+            // Woken from standby, the player stays stopped: the play was lost while it started.
+            let (fake, router) = getdata_router(&fake_with(&[
+                (
+                    PATH_KEF_SOURCE,
+                    json!({"type": "kefPhysicalSource", "kefPhysicalSource": "standby"}),
+                ),
+                (PATH_PLAYER_DATA, json!({"state": "stopped"})),
+            ]));
+            let addr = serve(fake.clone(), router).await;
+            let speaker = kef_on(&addr);
+            speaker
+                .play_station(&json!({"path": "airable:x"}))
+                .await
+                .unwrap();
+            let writes = fake.writes.lock().unwrap().clone();
+            assert!(plays(&writes) >= 2, "play sent again: {writes:?}");
+        }
+
+        #[tokio::test]
+        async fn an_awake_kef_on_wifi_plays_at_once() {
+            let (fake, router) = getdata_router(&fake_with(&[
+                (
+                    PATH_KEF_SOURCE,
+                    json!({"type": "kefPhysicalSource", "kefPhysicalSource": "wifi"}),
+                ),
+                (PATH_PLAYER_DATA, json!({"state": "stopped"})),
+            ]));
+            let addr = serve(fake.clone(), router).await;
+            kef_on(&addr)
+                .play_station(&json!({"path": "airable:x"}))
+                .await
+                .unwrap();
+            let writes = fake.writes.lock().unwrap().clone();
+            assert_eq!(
+                writes.len(),
+                1,
+                "no input switch, no second play: {writes:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn a_failed_naim_power_lookup_keeps_the_last_power() {
+            let (fake, router) = getdata_router(&Fake::default());
+            let addr = serve(fake, router.route("/power", get(naim_power_get))).await;
+            let mut speaker = naim_on(&addr);
+            assert_eq!(speaker.status().await.unwrap().power, SpeakerPower::Standby);
+            // The lookup now fails (port 15081 gone quiet): still standby, not "on".
+            speaker.naim_base = "http://127.0.0.1:9".to_string();
+            assert_eq!(speaker.status().await.unwrap().power, SpeakerPower::Standby);
         }
 
         async fn naim_now_playing(
@@ -1625,7 +1972,8 @@ mod tests {
                 fake.clone(),
                 router
                     .route("/api/getRows", get(get_rows))
-                    .route("/nowplaying", get(naim_now_playing)),
+                    .route("/nowplaying", get(naim_now_playing))
+                    .route("/power", get(|| async { Json(json!({"system": "on"})) })),
             )
             .await;
             let speaker = naim_on(&addr);
@@ -2191,5 +2539,46 @@ mod tests {
         };
         let status = Stream800::new(host, vendor).status().await.unwrap();
         println!("{status:#?}");
+    }
+
+    /// Plays on a real speaker (wakes it if asleep): a station from a saved `mediaRoles` file.
+    /// `STREAM800_WAKE=<ip>:kef|naim STREAM800_MEDIA=station.json cargo test live_wake_and_play
+    /// -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore = "needs a real speaker on the LAN; starts playback"]
+    async fn live_wake_and_play() {
+        let spec = std::env::var("STREAM800_WAKE").expect("STREAM800_WAKE=host:kef|naim");
+        let (host, vendor) = spec.split_once(':').expect("host:vendor");
+        let vendor = if vendor == "naim" {
+            Vendor::Naim
+        } else {
+            Vendor::Kef
+        };
+        let file = std::env::var("STREAM800_MEDIA").expect("STREAM800_MEDIA=<mediaRoles json>");
+        let media: Value = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+        let speaker = Stream800::new(host, vendor);
+        let started = Instant::now();
+        let before = speaker.status().await;
+        println!(
+            "{:>5.1}s before: {:?}",
+            started.elapsed().as_secs_f32(),
+            before.map(|s| (s.power, s.mode))
+        );
+        let played = speaker.play_station(&media).await;
+        println!(
+            "{:>5.1}s play_station: {played:?}",
+            started.elapsed().as_secs_f32()
+        );
+        for _ in 0..8 {
+            let status = speaker.status().await.unwrap();
+            println!(
+                "{:>5.1}s {:?} {:?} {:?}",
+                started.elapsed().as_secs_f32(),
+                status.power,
+                status.mode,
+                status.title
+            );
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
     }
 }

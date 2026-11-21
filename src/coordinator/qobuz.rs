@@ -14,9 +14,7 @@ use crate::{
     remote::{
         BrowseResult, GlobalSearchCategory, GlobalSearchResultBody, GlobalSearchTopResults, IoEvent,
     },
-    speaker::{
-        SpeakerBackend, SpeakerCommand, SpeakerKind, SpeakerManager, SpeakerPower, SpeakerStatus,
-    },
+    speaker::{SpeakerBackend, SpeakerCommand, SpeakerKind, SpeakerManager},
     zone_enrich::proxied_cover_url,
     zone_registry::ZoneRegistry,
 };
@@ -216,7 +214,6 @@ pub(crate) async fn search_category(
 /// [`play_item`]).
 pub(crate) fn plan_play_item(
     bound_kind: Option<SpeakerKind>,
-    last: Option<&SpeakerStatus>,
     id: &str,
 ) -> Result<Vec<SpeakerCommand>, &'static str> {
     let Some(kind) = bound_kind else {
@@ -229,12 +226,8 @@ pub(crate) fn plan_play_item(
     let Some(media) = qobuz::media_for(id, track.as_ref()) else {
         return Err("not a qobuz item");
     };
-    let mut commands = Vec::new();
-    if last.is_some_and(|s| s.power != SpeakerPower::On) {
-        commands.push(SpeakerCommand::Power(true));
-    }
-    commands.push(SpeakerCommand::PlayItem(Arc::new(media)));
-    Ok(commands)
+    // No separate power-on: the speaker wakes itself before it plays the item.
+    Ok(vec![SpeakerCommand::PlayItem(Arc::new(media))])
 }
 
 /// Play a Qobuz item on the zone's speaker. Cast radio playing on the zone is stopped first,
@@ -251,8 +244,7 @@ pub(crate) async fn play_item(
     cover_proxy_base: &str,
     events: &broadcast::Sender<IoEvent>,
 ) {
-    let last = manager.status_for_commands(playerid.0);
-    let commands = match plan_play_item(manager.kind(playerid.0), last.as_ref(), id) {
+    let commands = match plan_play_item(manager.kind(playerid.0), id) {
         Ok(commands) => commands,
         Err(reason) => {
             warn!(player_id = playerid.0, item = %id, reason = %reason, "qobuz item not played");
@@ -281,8 +273,7 @@ pub(crate) async fn play_item(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::player_state::Mode;
-    use crate::speaker::{fake::FakeSpeaker, ServiceRows};
+    use crate::speaker::{fake::FakeSpeaker, ServiceRows, SpeakerPower, SpeakerStatus};
     use serde_json::json;
 
     fn fake_with_albums() -> Arc<FakeSpeaker> {
@@ -340,39 +331,20 @@ mod tests {
 
     #[test]
     fn items_play_only_on_a_speaker_logged_into_qobuz() {
-        let on = SpeakerStatus {
-            mode: Some(Mode::Pause),
-            ..Default::default()
-        };
-        let plan = plan_play_item(
-            Some(SpeakerKind::NaimStream800),
-            Some(&on),
-            "qobuz:album:A1",
-        )
-        .unwrap();
+        // Also from standby: the speaker wakes itself before it plays the item.
+        let plan = plan_play_item(Some(SpeakerKind::NaimStream800), "qobuz:album:A1").unwrap();
         assert!(matches!(plan.as_slice(), [SpeakerCommand::PlayItem(m)]
             if m["path"] == "qobuz:/album?id=A1"));
-        let standby = SpeakerStatus {
-            power: SpeakerPower::Standby,
-            ..Default::default()
-        };
-        let plan = plan_play_item(
-            Some(SpeakerKind::NaimStream800),
-            Some(&standby),
-            "qobuz:track:T1",
-        )
-        .unwrap();
-        assert_eq!(plan[0], SpeakerCommand::Power(true));
         assert_eq!(
-            plan_play_item(Some(SpeakerKind::KefStream800), None, "qobuz:album:A1"),
+            plan_play_item(Some(SpeakerKind::KefStream800), "qobuz:album:A1"),
             Err("speaker cannot play qobuz")
         );
         assert_eq!(
-            plan_play_item(None, None, "qobuz:album:A1"),
+            plan_play_item(None, "qobuz:album:A1"),
             Err("no speaker bound to zone")
         );
         assert_eq!(
-            plan_play_item(Some(SpeakerKind::NaimStream800), None, "tunein:s1"),
+            plan_play_item(Some(SpeakerKind::NaimStream800), "tunein:s1"),
             Err("not a qobuz item")
         );
     }
@@ -516,9 +488,9 @@ mod tests {
         .await
         .unwrap();
         let commands = fake_speaker.commands();
-        assert_eq!(commands[0], SpeakerCommand::Power(true));
         assert!(
-            matches!(&commands[1], SpeakerCommand::PlayItem(m) if m["path"] == "qobuz:/album?id=A1")
+            matches!(commands.as_slice(), [SpeakerCommand::PlayItem(m)] if m["path"] == "qobuz:/album?id=A1"),
+            "no separate power-on: the speaker wakes itself"
         );
     }
 
