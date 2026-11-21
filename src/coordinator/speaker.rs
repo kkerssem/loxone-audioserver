@@ -90,7 +90,6 @@ pub(crate) fn current_speaker_station(
 pub(crate) fn plan_speaker_station(
     bound_kind: Option<&str>,
     favorite_kind: &str,
-    last: Option<&SpeakerStatus>,
     media: serde_json::Value,
 ) -> Result<Vec<SpeakerCommand>, &'static str> {
     let Some(bound_kind) = bound_kind else {
@@ -99,12 +98,9 @@ pub(crate) fn plan_speaker_station(
     if !bound_kind.eq_ignore_ascii_case(favorite_kind) {
         return Err("saved from another kind of speaker");
     }
-    let mut commands = Vec::new();
-    if last.is_some_and(|s| s.power != SpeakerPower::On) {
-        commands.push(SpeakerCommand::Power(true));
-    }
-    commands.push(SpeakerCommand::PlayStation(Arc::new(media)));
-    Ok(commands)
+    // No separate power-on: the speaker wakes itself into network playback for a station (a
+    // KEF woken with its last input would start that input, e.g. TV).
+    Ok(vec![SpeakerCommand::PlayStation(Arc::new(media))])
 }
 
 /// Play a room favorite saved from the zone's speaker on that speaker. Cast radio playing on
@@ -123,8 +119,7 @@ pub(crate) async fn play_speaker_station(
     events: &broadcast::Sender<IoEvent>,
 ) {
     let bound = manager.kind(playerid.0).map(|k| k.as_str());
-    let last = manager.status_for_commands(playerid.0);
-    let commands = match plan_speaker_station(bound, kind, last.as_ref(), media) {
+    let commands = match plan_speaker_station(bound, kind, media) {
         Ok(commands) => commands,
         Err(reason) => {
             warn!(player_id = playerid.0, favorite_kind = %kind, reason, "room favorite not played");
@@ -663,33 +658,15 @@ mod tests {
     fn station_favorite_plays_only_on_its_kind_of_speaker() {
         let media = serde_json::json!({"path": "vtuner:x"});
         let play = SpeakerCommand::PlayStation(Arc::new(media.clone()));
+        // Also from standby: the speaker wakes itself for the station.
         assert_eq!(
-            plan_speaker_station(
-                Some("naim_stream800"),
-                "naim_stream800",
-                Some(&on(20)),
-                media.clone()
-            ),
-            Ok(vec![play.clone()])
-        );
-        let standby = SpeakerStatus {
-            power: SpeakerPower::Standby,
-            ..Default::default()
-        };
-        assert_eq!(
-            plan_speaker_station(
-                Some("naim_stream800"),
-                "naim_stream800",
-                Some(&standby),
-                media.clone()
-            ),
-            Ok(vec![SpeakerCommand::Power(true), play])
+            plan_speaker_station(Some("naim_stream800"), "naim_stream800", media.clone()),
+            Ok(vec![play])
         );
         assert!(
-            plan_speaker_station(Some("kef_stream800"), "naim_stream800", None, media.clone())
-                .is_err()
+            plan_speaker_station(Some("kef_stream800"), "naim_stream800", media.clone()).is_err()
         );
-        assert!(plan_speaker_station(None, "naim_stream800", None, media).is_err());
+        assert!(plan_speaker_station(None, "naim_stream800", media).is_err());
     }
 
     #[test]

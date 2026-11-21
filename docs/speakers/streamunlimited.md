@@ -191,6 +191,7 @@ While a browsed item plays, `trackRoles.path` is the track (`qobuz:/track?id=…
 - **Standby:** write `standby`.
 - **Wake:** select an input. Writing `powerOn` leaves an LS60 in its app-standby state; selecting an input (the last one seen, or `wifi`) wakes it.
 - `powerOn` is also reported briefly while a KEF wakes up; it is not an input.
+- **Playing a station or a service item from standby:** the audioserver wakes the KEF by selecting `wifi`, not the last input. Waking with the last input starts that input (often `tv`), and a `play` sent while the speaker starts up is lost. A KEF that is on another input is switched to `wifi` as well. After a wake, the `play` is sent again until the player leaves `stopped` (user report, LS60, 2026-11-21).
 
 ## Volume
 

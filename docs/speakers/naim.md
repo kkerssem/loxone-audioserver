@@ -31,6 +31,8 @@ Implementation: [`src/speaker/stream800.rs`](../../src/speaker/stream800.rs) (`V
 | `GET /system`, `/network`, `/update`, `/alarms` | Device info, read only. `/system` includes serials | Verified (`/system`), Reported |
 | `/qobuz`, `/playqueue`, `/presets` | Do not exist (404) | Verified |
 
+**Slow while asleep:** port 15081 can take seconds to answer, more than a poll's 1.5 s timeout (one `/power` read took 3.0 s, Mu-so Qb 2, 2026-11-21). A failed lookup therefore keeps the last known power instead of assuming on. Playing a station or a service item reads `/power` with a 5 s timeout and sends `PUT ?system=on` unless it reads `on`; port-80 commands get the same longer timeout.
+
 ## `/nowplaying`
 
 Only answers while the speaker is awake. Unlike port 80, it **keeps the stopped radio station**: after a `stop` it still reports the station, title and artwork, with `transportState` 1.
