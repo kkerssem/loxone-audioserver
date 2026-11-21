@@ -97,8 +97,11 @@ pub struct SpeakerStatus {
     pub cover_url: String,
     pub duration_s: u32,
     pub position_s: i64,
-    /// Live stream (internet radio): `title` is the station name, there is no track length.
+    /// Live stream (internet radio): there is no track length.
     pub live: bool,
+    /// Name of the live station (StreamUnlimited `mediaRoles.title`), while `title` may be the
+    /// song it plays now (`"Artist - Song"`); `""` if unknown.
+    pub station_name: String,
     /// Opaque id of the current play session, new when a stream (re)starts; `""` if unknown.
     /// Lets the Loxone App reload a cover whose URL did not change (see
     /// [`crate::zone_enrich::apply_cover_proxy`]).

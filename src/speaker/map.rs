@@ -102,12 +102,19 @@ pub fn status_to_player_state(playerid: Playerid, status: &SpeakerStatus) -> Pla
         // A Qobuz track the speaker plays from its own Qobuz login: playable again by id.
         state.audiopath = track;
     }
-    // Same convention as Cast radio (`radio::build_radio_player_state`): station mirrors title.
-    state.station = if status.live {
-        status.title.clone()
-    } else {
-        String::new()
-    };
+    // The Loxone App shows `station` as the top line and the title below it. Without a
+    // station name, station mirrors title, as for Cast radio (`radio::build_radio_player_state`).
+    if status.live {
+        if status.station_name.is_empty() {
+            state.station = status.title.clone();
+        } else {
+            state.station = status.station_name.clone();
+            if state.title == state.station {
+                // Nothing about the song: show the station name once.
+                state.title.clear();
+            }
+        }
+    }
     state
 }
 
@@ -254,6 +261,29 @@ mod tests {
         assert!(status_to_player_state(Playerid(4), &playing())
             .station
             .is_empty());
+    }
+
+    #[test]
+    fn live_stream_shows_the_station_above_the_song() {
+        let radio = SpeakerStatus {
+            live: true,
+            title: "The The - Cognitive Dissident".into(),
+            station_name: "Radio Paradise Main Mix".into(),
+            source: "radio".into(),
+            ..playing()
+        };
+        let state = status_to_player_state(Playerid(4), &radio);
+        assert_eq!(state.station, "Radio Paradise Main Mix");
+        assert_eq!(state.title, "The The - Cognitive Dissident");
+
+        // No song metadata: the speaker repeats the station as the title; show it once.
+        let quiet = SpeakerStatus {
+            title: "Radio Paradise Main Mix".into(),
+            ..radio
+        };
+        let state = status_to_player_state(Playerid(4), &quiet);
+        assert_eq!(state.station, "Radio Paradise Main Mix");
+        assert!(state.title.is_empty());
     }
 
     #[test]
